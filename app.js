@@ -1,15 +1,31 @@
 /**
- * Motor Started v1.5
- * Fixed: Chart rendering crash, Stall indicator logic.
- * Added: Live Load Scaling display.
+ * Motor Started v1.6
+ * Feature: 19-Point Manual Grid, Persistent Field Restoration, Optimized Physics.
  */
 
-let chartDOL = null;
-let chartSS = null;
+const speeds = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
+let mainChart = null;
 
 function init() {
+    const tbody = document.getElementById('tableBody');
+    speeds.forEach(s => {
+        // Base Model Logic for initial values
+        let baseT = s < 80 ? 150 - (s * 0.2) : 150 + (s - 80) * 5; 
+        if (s > 90) baseT = 250 - (s - 90) * 25;
+        let baseC = 600 - (s * 3);
+        let baseLT = Math.pow(s / 100, 2) * 100;
+
+        const row = `<tr>
+            <td>${s}%</td>
+            <td><input type="number" class="val-mt" data-s="${s}" value="${Math.max(0, baseT).toFixed(0)}"></td>
+            <td><input type="number" class="val-mc" data-s="${s}" value="${Math.max(30, baseC).toFixed(0)}"></td>
+            <td><input type="number" class="val-lt" data-s="${s}" value="${baseLT.toFixed(0)}"></td>
+        </tr>`;
+        tbody.innerHTML += row;
+    });
+
     updateCalculations();
-    document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', updateCalculations));
+    document.querySelectorAll('input').forEach(el => el.addEventListener('input', updateCalculations));
     document.getElementById('btnDOL').onclick = () => runSimulation('DOL');
     document.getElementById('btnSS').onclick = () => runSimulation('SS');
 }
@@ -17,124 +33,90 @@ function init() {
 function updateCalculations() {
     const kw = parseFloat(document.getElementById('mKW').value) || 0;
     const rpm = parseFloat(document.getElementById('mRPM').value) || 1;
-    const lScale = document.getElementById('loadScale').value;
-    document.getElementById('loadValDisplay').innerText = lScale + "%";
-    
-    const flt = (kw * 9550) / rpm;
-    document.getElementById('resFLT').innerText = flt.toFixed(1);
-    document.getElementById('resTotalJ').innerText = (parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value)).toFixed(2);
+    document.getElementById('loadValDisplay').innerText = document.getElementById('loadScale').value + "%";
+    document.getElementById('resFLT').innerText = ((kw * 9550) / rpm).toFixed(1);
 }
-
-function getMotorPhysics(speedPct) {
-    const T_lrt = parseFloat(document.getElementById('pLRT').value);
-    const T_put = parseFloat(document.getElementById('pPUT').value);
-    const T_bdt = parseFloat(document.getElementById('pBDT').value);
-    const I_lrc = parseFloat(document.getElementById('pLRC').value);
-    const I_puc = parseFloat(document.getElementById('pPUC').value);
-    const I_bdc = parseFloat(document.getElementById('pBDC').value);
-
-    let t, i;
-    if (speedPct <= 25) {
-        t = lerp(speedPct, 0, T_lrt, 25, T_put);
-        i = lerp(speedPct, 0, I_lrc, 25, I_puc);
-    } else if (speedPct <= 85) {
-        t = lerp(speedPct, 25, T_put, 85, T_bdt);
-        i = lerp(speedPct, 25, I_puc, 85, I_bdc);
-    } else {
-        t = lerp(speedPct, 85, T_bdt, 100, 0);
-        i = lerp(speedPct, 85, I_bdc, 100, 30);
-    }
-    return { torque: t, current: i };
-}
-
-function lerp(x, x0, y0, x1, y1) { return y0 + (x - x0) * (y1 - y0) / (x1 - x0); }
 
 function runSimulation(mode) {
-    const labels = Array.from({length: 101}, (_, i) => i);
-    const data = { motorT: [], loadT: [], currentI: [] };
     const lScale = parseFloat(document.getElementById('loadScale').value) / 100;
     const iLimit = parseFloat(document.getElementById('ssLimitI').value);
-
-    // Pre-calculate full curves for the chart
-    for (let s = 0; s <= 100; s++) {
-        const phys = getMotorPhysics(s);
-        let tl = document.getElementById('loadProfile').value === 'fan' ? Math.pow(s/100, 2) * 100 : 100;
-        tl *= lScale;
-        
-        data.loadT.push(tl);
-        if (mode === 'SS') {
-            let v = Math.min(1, iLimit / phys.current);
-            data.motorT.push(phys.torque * v * v);
-            data.currentI.push(phys.current * v);
-        } else {
-            data.motorT.push(phys.torque);
-            data.currentI.push(phys.current);
-        }
-    }
-
-    // Step-by-step Simulation for stats
-    let speed = 0, time = 0, thermal = 0, minNet = 999, stallIdx = null, status = "HEALTHY";
-    const dt = 0.05;
-
-    while (speed < 98 && time < 30) {
-        let idx = Math.floor(speed);
-        let net = data.motorT[idx] - data.loadT[idx];
-        if (net < minNet) minNet = net;
-        
-        if (net <= 0) { status = "STALL"; stallIdx = idx; break; }
-        
-        // Simple acceleration: speed += (net torque) * constant
-        speed += net * 0.1; 
-        time += dt;
-        thermal += (data.currentI[idx] / 100) * dt;
-    }
-
-    if (time >= 30 && speed < 98) status = "TIMEOUT";
-
-    updateUI(mode, time, thermal, minNet, status);
-    renderChart(mode, labels, data, stallIdx);
-}
-
-function updateUI(mode, t, therm, minT, status) {
-    const container = mode === 'DOL' ? 'statsDOL' : 'statsSS';
-    const cards = document.getElementById(container).querySelectorAll('.val');
-    cards[0].innerText = status === "HEALTHY" ? t.toFixed(2) + "s" : "--";
-    cards[1].innerText = therm.toFixed(1);
-    cards[2].innerText = minT.toFixed(1) + "%";
-    cards[3].innerText = status;
-    cards[3].style.color = status === "HEALTHY" ? "#10b981" : "#f43f5e";
-}
-
-function renderChart(mode, labels, data, stallIdx) {
-    const canvasId = mode === 'DOL' ? 'chartDOL' : 'chartSS';
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const fltNm = parseFloat(document.getElementById('resFLT').innerText);
+    const totalJ = parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value);
     
-    if (mode === 'DOL' && chartDOL) chartDOL.destroy();
-    if (mode === 'SS' && chartSS) chartSS.destroy();
+    let simData = { s: [], mt: [], lt: [], mc: [] };
+    const rows = document.querySelectorAll('#tableBody tr');
 
-    const chartObj = new Chart(ctx, {
+    rows.forEach(row => {
+        const s = parseInt(row.cells[0].innerText);
+        const mt_raw = parseFloat(row.querySelector('.val-mt').value);
+        const mc_raw = parseFloat(row.querySelector('.val-mc').value);
+        const lt_raw = parseFloat(row.querySelector('.val-lt').value) * lScale;
+
+        simData.s.push(s);
+        if (mode === 'SS') {
+            let v = Math.min(1, iLimit / mc_raw);
+            simData.mt.push(mt_raw * v * v);
+            simData.mc.push(mc_raw * v);
+        } else {
+            simData.mt.push(mt_raw);
+            simData.mc.push(mc_raw);
+        }
+        simData.lt.push(lt_raw);
+    });
+
+    // Numerical Integration
+    let speed = 0, time = 0, minNet = 999, status = "SUCCESS";
+    const dt = 0.02;
+
+    while (speed < 98 && time < 60) {
+        let idx = speeds.findIndex(v => v >= speed);
+        if (idx === -1) idx = speeds.length - 1;
+
+        let net = simData.mt[idx] - simData.lt[idx];
+        if (net < minNet) minNet = net;
+
+        if (net <= 0.1) { status = "STALL"; break; }
+
+        let accel = (net * fltNm / 100) / totalJ;
+        speed += (accel * 9.55) * dt / (parseFloat(document.getElementById('mRPM').value) / 100);
+        time += dt;
+    }
+
+    if (time >= 60) status = "TIMEOUT";
+    
+    updateUI(time, status, minNet);
+    renderChart(simData);
+}
+
+function updateUI(t, status, minNet) {
+    document.getElementById('statTime').innerText = status === "SUCCESS" ? t.toFixed(2) + "s" : "--";
+    document.getElementById('statStatus').innerText = status;
+    document.getElementById('statNet').innerText = minNet.toFixed(1) + "%";
+    document.getElementById('statStatus').style.color = status === "SUCCESS" ? "#10b981" : "#f43f5e";
+}
+
+function renderChart(data) {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (mainChart) mainChart.destroy();
+
+    mainChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels,
+            labels: data.s,
             datasets: [
-                { label: 'Torque%', data: data.motorT, borderColor: '#22d3ee', borderWidth: 2, pointRadius: 0 },
-                { label: 'Load%', data: data.loadT, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 },
-                { label: 'Current%', data: data.currentI, borderColor: '#fbbf24', borderWidth: 1, pointRadius: 0, yAxisID: 'y1' }
+                { label: 'Motor Torque %', data: data.mt, borderColor: '#22d3ee', borderWidth: 3, tension: 0.3 },
+                { label: 'Load Torque %', data: data.lt, borderColor: '#f43f5e', borderDash: [5,5], tension: 0.3 },
+                { label: 'Current %', data: data.mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', tension: 0.3 }
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: {
                 y: { min: 0, title: { display: true, text: 'Torque %' } },
-                y1: { min: 0, position: 'right', grid: { drawOnChartArea: false } }
-            },
-            plugins: {
-                tooltip: { enabled: true }
+                y1: { min: 0, position: 'right', title: { display: true, text: 'Current %' }, grid: { drawOnChartArea: false } }
             }
         }
     });
-
-    if (mode === 'DOL') chartDOL = chartObj; else chartSS = chartObj;
 }
 
 window.onload = init;
