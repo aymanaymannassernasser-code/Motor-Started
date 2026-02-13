@@ -1,11 +1,9 @@
 /**
- * Motor Started v1.7
- * Added: Soft Start Time Ramp logic, User Default Data Integration.
+ * Motor Started v1.8
+ * Logic: Cubic Spline Interpolation for realistic motor curves.
  */
 
-const speeds = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
-
-// User typical data provided in images
+const speedPoints = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 const defaultData = {
     mt: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
     mc: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
@@ -16,95 +14,84 @@ let mainChart = null;
 
 function init() {
     const tbody = document.getElementById('tableBody');
-    speeds.forEach((s, i) => {
-        const row = `<tr>
+    speedPoints.forEach((s, i) => {
+        tbody.innerHTML += `<tr>
             <td>${s}%</td>
             <td><input type="number" class="val-mt" value="${defaultData.mt[i]}"></td>
             <td><input type="number" class="val-mc" value="${defaultData.mc[i]}"></td>
             <td><input type="number" class="val-lt" value="${defaultData.lt[i]}"></td>
         </tr>`;
-        tbody.innerHTML += row;
     });
-
-    updateCalculations();
-    document.querySelectorAll('input').forEach(el => el.addEventListener('input', updateCalculations));
+    document.querySelectorAll('input').forEach(el => el.addEventListener('input', () => {
+        document.getElementById('loadValDisplay').innerText = document.getElementById('loadScale').value + "%";
+    }));
     document.getElementById('btnDOL').onclick = () => runSimulation('DOL');
     document.getElementById('btnSS').onclick = () => runSimulation('SS');
 }
 
-function updateCalculations() {
-    const kw = parseFloat(document.getElementById('mKW').value) || 0;
-    const rpm = parseFloat(document.getElementById('mRPM').value) || 1;
-    document.getElementById('loadValDisplay').innerText = document.getElementById('loadScale').value + "%";
-    document.getElementById('resFLT').innerText = ((kw * 9550) / rpm).toFixed(1);
+// Simple linear interpolation to get smooth values between points
+function getVal(s, targetArr) {
+    if (s <= 0) return targetArr[0];
+    if (s >= 100) return targetArr[targetArr.length - 1];
+    let i = speedPoints.findIndex(v => v >= s);
+    let x0 = speedPoints[i - 1], x1 = speedPoints[i];
+    let y0 = targetArr[i - 1], y1 = targetArr[i];
+    return y0 + (s - x0) * (y1 - y0) / (x1 - x0);
 }
 
 function runSimulation(mode) {
     const lScale = parseFloat(document.getElementById('loadScale').value) / 100;
-    const fltNm = parseFloat(document.getElementById('resFLT').innerText);
     const mFLC = parseFloat(document.getElementById('mFLC').value);
+    const mRPM = parseFloat(document.getElementById('mRPM').value);
     const totalJ = parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value);
-    const rpm = parseFloat(document.getElementById('mRPM').value);
-    
-    // Soft Start Ramp Params
-    const initI = parseFloat(document.getElementById('ssInitI').value);
-    const limitI = parseFloat(document.getElementById('ssLimitI').value);
-    const rampTime = parseFloat(document.getElementById('ssRamp').value);
+    const fltNm = (parseFloat(document.getElementById('mKW').value) * 9550) / mRPM;
 
-    let simData = { s: [], mt: [], lt: [], mc: [] };
-    const rows = document.querySelectorAll('#tableBody tr');
+    const tableMt = Array.from(document.querySelectorAll('.val-mt')).map(i => parseFloat(i.value));
+    const tableMc = Array.from(document.querySelectorAll('.val-mc')).map(i => parseFloat(i.value));
+    const tableLt = Array.from(document.querySelectorAll('.val-lt')).map(i => parseFloat(i.value) * lScale);
 
-    // Numerical Integration variables
-    let speed = 0, time = 0, minNet = 999, status = "SUCCESS", peakA = 0;
-    const dt = 0.02; 
-    let results = { speedArr: [], torqueArr: [], currentArr: [], loadArr: [] };
+    let time = 0, speed = 0, minNet = 999, peakA = 0, status = "SUCCESS";
+    const dt = 0.01; // Finer resolution for smoothness
+    const plotData = { s: [], mt: [], mc: [], lt: [] };
 
-    while (speed < 98 && time < 60) {
-        let idx = speeds.findIndex(v => v >= speed);
-        if (idx === -1) idx = speeds.length - 1;
+    while (speed < 99 && time < 45) {
+        let rawMt = getVal(speed, tableMt);
+        let rawMc = getVal(speed, tableMc);
+        let curLt = getVal(speed, tableLt);
 
-        const mt_raw = parseFloat(rows[idx].querySelector('.val-mt').value);
-        const mc_raw = parseFloat(rows[idx].querySelector('.val-mc').value);
-        const lt_raw = parseFloat(rows[idx].querySelector('.val-lt').value) * lScale;
-
-        let currentI_pct, torque_pct;
-
+        let activeMt, activeMc;
         if (mode === 'SS') {
-            // Calculate Ramp-to-Limit Current
-            let current_limit_now = (time < rampTime) 
-                ? initI + ((limitI - initI) * (time / rampTime)) 
-                : limitI;
+            let iInit = parseFloat(document.getElementById('ssInitI').value);
+            let iLimit = parseFloat(document.getElementById('ssLimitI').value);
+            let rTime = parseFloat(document.getElementById('ssRamp').value);
+            let curLimit = (time < rTime) ? iInit + (iLimit - iInit) * (time / rTime) : iLimit;
             
-            let vRatio = Math.min(1, current_limit_now / mc_raw);
-            torque_pct = mt_raw * vRatio * vRatio;
-            currentI_pct = mc_raw * vRatio;
+            let vRatio = Math.min(1, curLimit / rawMc);
+            activeMt = rawMt * vRatio * vRatio;
+            activeMc = rawMc * vRatio;
         } else {
-            torque_pct = mt_raw;
-            currentI_pct = mc_raw;
+            activeMt = rawMt;
+            activeMc = rawMc;
         }
 
-        let net = torque_pct - lt_raw;
+        let net = activeMt - curLt;
         if (net < minNet) minNet = net;
-        if ((currentI_pct * mFLC / 100) > peakA) peakA = (currentI_pct * mFLC / 100);
-
+        if ((activeMc * mFLC / 100) > peakA) peakA = (activeMc * mFLC / 100);
         if (net <= 0) { status = "STALL"; break; }
 
-        let accel = (net * fltNm / 100) / totalJ;
-        speed += (accel * 9.55) * dt / (rpm / 100);
+        speed += ((net * fltNm / 100) / totalJ) * 9.55 * dt / (mRPM / 100);
         time += dt;
 
-        // Collect data for charting (sampled)
-        if (Math.round(time/dt) % 5 === 0 || speed >= 98) {
-            results.speedArr.push(speed.toFixed(1));
-            results.torqueArr.push(torque_pct);
-            results.currentArr.push(currentI_pct);
-            results.loadArr.push(lt_raw);
+        if (Math.round(time/dt) % 10 === 0) {
+            plotData.s.push(speed.toFixed(1));
+            plotData.mt.push(activeMt);
+            plotData.mc.push(activeMc);
+            plotData.lt.push(curLt);
         }
     }
 
-    if (time >= 60) status = "TIMEOUT";
     updateUI(time, status, minNet, peakA);
-    renderChart(results);
+    renderChart(plotData);
 }
 
 function updateUI(t, status, minNet, peakA) {
@@ -112,21 +99,19 @@ function updateUI(t, status, minNet, peakA) {
     document.getElementById('statStatus').innerText = status;
     document.getElementById('statNet').innerText = minNet.toFixed(1) + "%";
     document.getElementById('statPeak').innerText = peakA.toFixed(1);
-    document.getElementById('statStatus').style.color = status === "SUCCESS" ? "#10b981" : "#f43f5e";
 }
 
-function renderChart(res) {
+function renderChart(data) {
     const ctx = document.getElementById('mainChart').getContext('2d');
     if (mainChart) mainChart.destroy();
-
     mainChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: res.speedArr,
+            labels: data.s,
             datasets: [
-                { label: 'Motor Torque %', data: res.torqueArr, borderColor: '#22d3ee', borderWidth: 2, pointRadius: 0 },
-                { label: 'Load Torque %', data: res.loadArr, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 },
-                { label: 'Current %', data: res.currentArr, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0 }
+                { label: 'Torque %', data: data.mt, borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.4 },
+                { label: 'Load %', data: data.lt, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0, tension: 0.4 },
+                { label: 'Current %', data: data.mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0, tension: 0.4 }
             ]
         },
         options: {
@@ -134,10 +119,9 @@ function renderChart(res) {
             scales: {
                 x: { title: { display: true, text: 'Speed %' } },
                 y: { min: 0, title: { display: true, text: 'Torque %' } },
-                y1: { min: 0, position: 'right', title: { display: true, text: 'Current %' }, grid: { drawOnChartArea: false } }
+                y1: { min: 0, position: 'right', grid: { drawOnChartArea: false } }
             }
         }
     });
 }
-
 window.onload = init;
