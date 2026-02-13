@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v1.4 | Ayman Elkhodary</title>
+    <title>Motor Started v1.5 | Ayman Elkhodary</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v1.4</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v1.5</small></h1>
             <div class="signature">by Ayman Elkhodary</div>
         </div>
     </header>
@@ -19,96 +19,81 @@
             <section class="card">
                 <h3>Project Details</h3>
                 <div class="input-row">
-                    <label>Project:-</label>
+                    <label>Project Name:</label>
                     <input type="text" id="projName" value="Industrial Drive Analysis">
                 </div>
             </section>
 
             <section class="card">
-                <h3>General Motor & Load Data</h3>
+                <h3>Motor & Load Parameters</h3>
                 <div class="grid-2">
-                    <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="400"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="75"></div>
-                    <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="135"></div>
                     <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1475"></div>
-                </div>
-                <div class="readout">Rated Torque (FLT): <span id="resFLT">--</span> Nm</div>
-                
-                <div class="grid-2 mt-10">
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="1.2"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="3.5"></div>
                 </div>
                 
                 <div class="f-group mt-10">
-                    <label>Load Scaling (%)</label>
-                    <input type="range" id="loadScale" min="10" max="200" value="100">
-                    <div class="readout accent">Active Load: <span id="valLoadScale">100</span>%</div>
+                    <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
+                    <input type="range" id="loadScale" min="0" max="250" value="100" style="width:100%">
                 </div>
                 
-                <div class="f-group mt-10">
-                    <label>Max Stall Time @ LRC (s)</label>
-                    <input type="number" id="tStall" value="15">
-                </div>
+                <div class="readout">FL Torque: <span id="resFLT">--</span> Nm</div>
+                <div class="readout accent">Total Inertia: <span id="resTotalJ">--</span> kgm²</div>
             </section>
 
             <section class="card">
-                <h3>DOL Curve Points (% FLT / % FLC)</h3>
+                <h3>DOL Characteristics</h3>
                 <table class="data-table">
                     <thead><tr><th>Point</th><th>Torque%</th><th>Current%</th></tr></thead>
                     <tbody>
-                        <tr><td>Locked (LRT)</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
-                        <tr><td>Pull-Up (Sag)</td><td><input type="number" id="pPUT" value="130"></td><td><input type="number" id="pPUC" value="580"></td></tr>
-                        <tr><td>Breakdown (BDT)</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
+                        <tr><td>Locked</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
+                        <tr><td>Pull-Up</td><td><input type="number" id="pPUT" value="130"></td><td><input type="number" id="pPUC" value="580"></td></tr>
+                        <tr><td>Breakdown</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
                     </tbody>
                 </table>
                 <div class="f-group mt-10">
-                    <label>Load Torque Profile</label>
+                    <label>Profile</label>
                     <select id="loadProfile">
-                        <option value="fan">Fan / Pump (Square Law)</option>
+                        <option value="fan">Centrifugal (Square)</option>
                         <option value="const">Constant Torque</option>
                     </select>
                 </div>
-                <button id="btnDOL" class="btn-main mt-10">1. SIMULATE DOL SCENARIO</button>
+                <button id="btnDOL" class="btn-main mt-10">Simulate DOL</button>
             </section>
 
             <section class="card highlight">
-                <h3>Soft Starter Settings</h3>
+                <h3>Soft Start Config</h3>
                 <div class="grid-2">
-                    <div class="f-group"><label>Initial Current%</label><input type="number" id="ssInitI" value="300"></div>
-                    <div class="f-group"><label>Current Limit%</label><input type="number" id="ssLimitI" value="350"></div>
+                    <div class="f-group"><label>Start I%</label><input type="number" id="ssInitI" value="300"></div>
+                    <div class="f-group"><label>Limit I%</label><input type="number" id="ssLimitI" value="350"></div>
                 </div>
-                <div class="f-group mt-10">
-                    <label>Ramp Time (s)</label>
-                    <input type="number" id="ssRamp" value="5">
-                </div>
-                <button id="btnSS" class="btn-main mt-10">2. SIMULATE SOFT START</button>
+                <button id="btnSS" class="btn-main mt-10">Simulate Soft Start</button>
             </section>
         </aside>
 
         <article class="results">
             <div class="scenario-section">
-                <h2 class="section-title">Scenario A: Direct-On-Line (DOL)</h2>
+                <h2 class="section-title">DOL Scenario</h2>
                 <div class="stats-grid" id="statsDOL">
-                    <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Time</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Thermal</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Net T%</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Status</h5><p class="val">--</p></div>
                 </div>
                 <div class="chart-wrapper"><canvas id="chartDOL"></canvas></div>
             </div>
 
             <div class="scenario-section">
-                <h2 class="section-title">Scenario B: Soft Starter</h2>
+                <h2 class="section-title">Soft Start Scenario</h2>
                 <div class="stats-grid" id="statsSS">
-                    <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Time</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Thermal</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Net T%</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Status</h5><p class="val">--</p></div>
                 </div>
                 <div class="chart-wrapper"><canvas id="chartSS"></canvas></div>
             </div>
-
-            <div id="statusAlert" class="alert hidden"></div>
         </article>
     </main>
 
