@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started | Ayman Elkhodary</title>
+    <title>Motor Started v1.4 | Ayman Elkhodary</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started</h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v1.4</small></h1>
             <div class="signature">by Ayman Elkhodary</div>
         </div>
     </header>
@@ -20,7 +20,7 @@
                 <h3>Project Details</h3>
                 <div class="input-row">
                     <label>Project:-</label>
-                    <input type="text" id="projName" value="Custom Motor Analysis">
+                    <input type="text" id="projName" value="Industrial Drive Analysis">
                 </div>
             </section>
 
@@ -38,10 +38,15 @@
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="1.2"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="3.5"></div>
                 </div>
-                <div class="readout accent">Total Inertia: <span id="resTotalJ">--</span> kgm²</div>
                 
                 <div class="f-group mt-10">
-                    <label>Permissible Stall Time (s)</label>
+                    <label>Load Scaling (%)</label>
+                    <input type="range" id="loadScale" min="10" max="200" value="100">
+                    <div class="readout accent">Active Load: <span id="valLoadScale">100</span>%</div>
+                </div>
+                
+                <div class="f-group mt-10">
+                    <label>Max Stall Time @ LRC (s)</label>
                     <input type="number" id="tStall" value="15">
                 </div>
             </section>
@@ -60,7 +65,7 @@
                     <label>Load Torque Profile</label>
                     <select id="loadProfile">
                         <option value="fan">Fan / Pump (Square Law)</option>
-                        <option value="const">Constant (100%)</option>
+                        <option value="const">Constant Torque</option>
                     </select>
                 </div>
                 <button id="btnDOL" class="btn-main mt-10">1. SIMULATE DOL SCENARIO</button>
@@ -87,7 +92,7 @@
                     <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Min Start Current</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Status</h5><p class="val">--</p></div>
                 </div>
                 <div class="chart-wrapper"><canvas id="chartDOL"></canvas></div>
             </div>
@@ -98,16 +103,12 @@
                     <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
                     <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
-                    <div class="stat-card"><h5>Min Start Current</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Status</h5><p class="val">--</p></div>
                 </div>
                 <div class="chart-wrapper"><canvas id="chartSS"></canvas></div>
             </div>
 
-            <footer class="tech-sources">
-                <p><strong>Modeling Logic:</strong> Flexible Piecewise Hermite Interpolation. Curves respect user-defined LRT, Pull-up, and BDT anchors without forced mathematical sags. Current follows a verified low-slip admittance drop-off.</p>
-            </footer>
-            
-            <div id="stallAlert" class="alert hidden">⚠️ STALL DETECTED: LOAD EXCEEDS MOTOR TORQUE</div>
+            <div id="statusAlert" class="alert hidden"></div>
         </article>
     </main>
 

@@ -1,6 +1,7 @@
+/* Motor Started v1.4 Stylesheet */
 :root {
     --bg: #0f172a; --card: #1e293b; --accent: #22d3ee;
-    --text: #f1f5f9; --border: #334155; --danger: #f43f5e; --warning: #f59e0b;
+    --text: #f1f5f9; --border: #334155; --danger: #f43f5e; --warning: #f59e0b; --success: #10b981;
 }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; }
 header { padding: 12px 24px; border-bottom: 2px solid var(--accent); background: #020617; }
@@ -15,6 +16,8 @@ header { padding: 12px 24px; border-bottom: 2px solid var(--accent); background:
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .f-group label { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
 input, select { width: 100%; background: #020617; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px; box-sizing: border-box; }
+
+input[type="range"] { accent-color: var(--accent); cursor: pointer; }
 
 .readout { background: #020617; padding: 10px; margin-top: 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; border-left: 2px solid var(--accent); }
 .accent { color: var(--accent); }
@@ -35,6 +38,8 @@ input, select { width: 100%; background: #020617; border: 1px solid var(--border
 .stat-card p { margin: 5px 0 0 0; font-size: 1.1rem; font-weight: bold; }
 
 .chart-wrapper { background: #fff; border-radius: 8px; padding: 10px; height: 350px; }
-.alert { background: var(--danger); color: white; padding: 15px; border-radius: 8px; margin-top: 10px; font-weight: bold; text-align: center; }
-#thermalAlert { background: var(--warning); color: #000; }
+.alert { color: white; padding: 15px; border-radius: 8px; margin-top: 10px; font-weight: bold; text-align: center; }
+.alert.stall { background: var(--danger); }
+.alert.trip { background: var(--warning); color: black; }
+.alert.healthy { background: var(--success); }
 .hidden { display: none; }

@@ -1,3 +1,8 @@
+/**
+ * Motor Started v1.4
+ * Added: Manual Load Scaling, Persistent Curve Drawing on Stall, Failed Point Markers.
+ */
+
 let chartDOL, chartSS;
 
 function init() {
@@ -10,11 +15,12 @@ function init() {
 function updateCalculations() {
     const kw = parseFloat(document.getElementById('mKW').value) || 0;
     const rpm = parseFloat(document.getElementById('mRPM').value) || 1;
-    const mJ = parseFloat(document.getElementById('mJ').value) || 0;
-    const lJ = parseFloat(document.getElementById('lJ').value) || 0;
+    const lScale = document.getElementById('loadScale').value;
+    document.getElementById('valLoadScale').innerText = lScale;
+    
     const flt = (kw * 9550) / rpm;
     document.getElementById('resFLT').innerText = flt.toFixed(1);
-    document.getElementById('resTotalJ').innerText = (mJ + lJ).toFixed(2);
+    document.getElementById('resTotalJ').innerText = (parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value)).toFixed(2);
 }
 
 function getMotorPhysics(speedPct) {
@@ -49,15 +55,18 @@ function runSimulation(mode) {
     const iLimit = parseFloat(document.getElementById('ssLimitI').value);
     const syncSpeed = parseFloat(document.getElementById('mRPM').value) * 1.02;
     const tStallMax = parseFloat(document.getElementById('tStall').value);
-    const lrc = parseFloat(document.getElementById('pLRC').value);
+    const lScaleFactor = parseFloat(document.getElementById('loadScale').value) / 100;
 
-    // Generate Visual Curves
+    // 1. Generate FULL curves (even for stall scenarios)
     labels.forEach(s => {
         const phys = getMotorPhysics(s);
-        const t_load = document.getElementById('loadProfile').value === 'fan' ? Math.pow(s / 100, 2) * 100 : 100;
+        let t_load = document.getElementById('loadProfile').value === 'fan' ? Math.pow(s / 100, 2) * 100 : 100;
+        t_load *= lScaleFactor; // Apply manual load scaling
+
         data.dolT.push(phys.torque);
         data.dolI.push(phys.current);
         data.loadT.push(t_load);
+
         if (mode === 'SS') {
             let vRatio = Math.min(1, iLimit / phys.current);
             data.actI.push(phys.current * vRatio);
@@ -68,11 +77,10 @@ function runSimulation(mode) {
         }
     });
 
-    // Numerical Simulation
-    let speed = 0, time = 0, thermal = 0, minNet = Infinity, minI = Infinity;
-    let isStall = false, isThermalTrip = false;
-    const dt = 0.02; 
-    const thermalLimit = Math.pow(lrc, 2) * tStallMax;
+    // 2. Simulation Logic
+    let speed = 0, time = 0, thermal = 0, minNet = Infinity, stallPoint = null, resultType = "SUCCESS";
+    const dt = 0.02;
+    const thermalLimit = Math.pow(parseFloat(document.getElementById('pLRC').value), 2) * tStallMax;
 
     while (speed < 98) {
         let idx = Math.min(100, Math.floor(speed));
@@ -82,69 +90,75 @@ function runSimulation(mode) {
         
         let net = tM - tL;
         if (net < minNet) minNet = net;
-        if (iA < minI) minI = iA;
 
-        // Condition 1: Mechanical Stall
-        if (net <= 0.5) { isStall = true; break; }
+        if (net <= 0.1) { resultType = "STALL"; stallPoint = idx; break; }
 
-        // Condition 2: Thermal Trip
         thermal += Math.pow(iA, 2) * dt;
-        if (thermal >= thermalLimit) { isThermalTrip = true; break; }
-
-        // Condition 3: Hard Time Limit (60s)
-        if (time > 60) { isThermalTrip = true; break; }
+        if (thermal >= thermalLimit || time > 60) { resultType = "TRIP"; stallPoint = idx; break; }
 
         let accel = (net * fltNm / 100) / totalJ;
         speed += ((accel * 9.55) * dt / syncSpeed) * 100;
         time += dt;
     }
 
-    updateUI(mode, time, thermal, thermalLimit, minNet, minI, isStall, isThermalTrip);
-    renderChart(mode, labels, data);
+    updateUI(mode, time, thermal, thermalLimit, minNet, resultType);
+    renderChart(mode, labels, data, stallPoint);
 }
 
-function updateUI(mode, t, therm, lim, minT, minI, stalled, burned) {
+function updateUI(mode, t, therm, lim, minT, status) {
     const container = mode === 'DOL' ? 'statsDOL' : 'statsSS';
     const cards = document.getElementById(container).querySelectorAll('.val');
     
-    if (stalled) cards[0].innerText = "STALL";
-    else if (burned) cards[0].innerText = "TRIP";
-    else cards[0].innerText = t.toFixed(2) + "s";
-
+    cards[0].innerText = (status === "SUCCESS") ? t.toFixed(2) + "s" : "--";
     cards[1].innerText = ((therm / lim) * 100).toFixed(1) + "%";
     cards[2].innerText = minT.toFixed(1) + "%";
-    cards[3].innerText = minI.toFixed(1) + "%";
-    
-    document.getElementById('stallAlert').className = stalled ? 'alert' : 'hidden';
-    document.getElementById('thermalAlert').className = burned ? 'alert' : 'hidden';
+    cards[3].innerText = status;
+
+    const alert = document.getElementById('statusAlert');
+    alert.className = "alert " + status.toLowerCase();
+    alert.innerText = status === "SUCCESS" ? "Motor Successfully Started" : "Failure: Motor " + status;
+    alert.classList.remove('hidden');
 }
 
-function renderChart(mode, labels, data) {
+function renderChart(mode, labels, data, stallIdx) {
     const ctx = document.getElementById(mode === 'DOL' ? 'chartDOL' : 'chartSS').getContext('2d');
     const isSS = mode === 'SS';
     if (mode === 'DOL' && chartDOL) chartDOL.destroy();
     if (mode === 'SS' && chartSS) chartSS.destroy();
+
+    const annotations = [];
+    if (stallIdx !== null) {
+        annotations.push({
+            type: 'point',
+            xValue: stallIdx,
+            yValue: data.actT[stallIdx],
+            backgroundColor: 'red',
+            radius: 8,
+            label: { content: 'STALL', enabled: true }
+        });
+    }
 
     const config = {
         type: 'line',
         data: {
             labels,
             datasets: [
-                { label: 'Torque %', data: isSS ? data.actT : data.dolT, borderColor: '#22d3ee', borderWidth: 3, yAxisID: 'y', tension: 0.2 },
-                { label: 'Load %', data: data.loadT, borderColor: '#f43f5e', borderDash: [4, 4], yAxisID: 'y', tension: 0.1 },
-                { label: 'Current %', data: isSS ? data.actI : data.dolI, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', tension: 0.1 }
+                { label: 'Torque %', data: isSS ? data.actT : data.dolT, borderColor: '#22d3ee', borderWidth: 3, tension: 0.2 },
+                { label: 'Load %', data: data.loadT, borderColor: '#f43f5e', borderDash: [4, 4], tension: 0.1 },
+                { label: 'Current %', data: isSS ? data.actI : data.dolI, borderColor: '#fbbf24', borderWidth: 1.5, yAxisID: 'y1', tension: 0.1 }
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            elements: { point: { radius: 0 } },
+            elements: { point: { radius: (ctx) => (stallIdx !== null && ctx.dataIndex === stallIdx) ? 6 : 0, backgroundColor: 'red' } },
             scales: {
                 y: { min: 0, title: { display: true, text: 'Torque %' } },
                 y1: { min: 0, title: { display: true, text: 'Current %' }, position: 'right', grid: { drawOnChartArea: false } }
             }
         }
     };
-    if (isSS) config.data.datasets.push({ label: 'DOL Torque Ref', data: data.dolT, borderColor: '#94a3b8', borderDash: [5, 5], yAxisID: 'y', tension: 0.2 });
+    if (isSS) config.data.datasets.push({ label: 'DOL Torque Ref', data: data.dolT, borderColor: '#94a3b8', borderDash: [5, 5], tension: 0.2 });
+    
     const c = new Chart(ctx, config);
     if (mode === 'DOL') chartDOL = c; else chartSS = c;
 }
