@@ -1,43 +1,25 @@
-:root {
-    --bg: #0f172a; --card: #1e293b; --accent: #22d3ee;
-    --text: #f1f5f9; --border: #334155; --danger: #f43f5e;
-}
+:root { --bg: #0f172a; --card: #1e293b; --accent: #22d3ee; --text: #f1f5f9; --border: #334155; }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; }
 header { padding: 10px 25px; border-bottom: 2px solid var(--accent); background: #020617; }
-
-/* Layout Grid */
-.dashboard { display: grid; grid-template-columns: 440px 1fr; gap: 20px; padding: 15px; height: 92vh; }
+.dashboard { display: grid; grid-template-columns: 460px 1fr; gap: 20px; padding: 15px; height: 92vh; }
 .sidebar { overflow-y: auto; display: flex; flex-direction: column; border-right: 1px solid var(--border); padding-right: 15px; }
-.results { overflow-y: auto; padding-right: 10px; }
-
-/* Cards & Components */
+.results { overflow-y: auto; padding-bottom: 50px; }
 .card { background: var(--card); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
 .scroll-card { flex-grow: 1; overflow-y: auto; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .f-group label { display: block; font-size: 0.65rem; color: #94a3b8; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; }
 input { width: 100%; background: #020617; border: 1px solid var(--border); color: white; padding: 6px; border-radius: 4px; font-size: 0.85rem; }
-
-/* Simulation Sections */
-.scenario-section { background: rgba(30, 41, 59, 0.5); border-radius: 12px; padding: 18px; margin-bottom: 20px; border: 1px solid var(--border); }
-.section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; gap: 20px; }
-
-.ss-controls { display: flex; align-items: center; gap: 15px; flex-grow: 1; }
-.ss-controls .f-group { width: 75px; }
-
-.btn-main { padding: 12px 24px; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; background: var(--accent); color: #020617; text-transform: uppercase; font-size: 0.85rem; }
+.scenario-section { background: rgba(30, 41, 59, 0.5); border-radius: 12px; padding: 15px; margin-bottom: 25px; border: 1px solid var(--border); }
+.section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; gap: 10px; }
+.ss-controls { display: flex; align-items: center; gap: 12px; flex-grow: 1; }
+.ss-controls .f-group { width: 70px; }
+.btn-main { padding: 12px 15px; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; background: var(--accent); color: #020617; text-transform: uppercase; font-size: 0.75rem; }
 .ss-btn { background: #fbbf24; }
-
-/* Stats Bar */
-.stats-row { display: flex; gap: 15px; background: #020617; padding: 8px 18px; border-radius: 6px; border: 1px solid var(--accent); }
-.mini-stat { font-size: 0.75rem; color: #94a3b8; }
-.mini-stat b { color: #fff; font-family: monospace; font-size: 1rem; margin-left: 5px; }
-
-.chart-container { background: #fff; border-radius: 8px; height: 350px; padding: 12px; }
-.divider { border: 0; border-top: 1px solid var(--border); margin: 25px 0; }
-.accent { color: var(--accent); font-weight: bold; }
-
-/* Table Styling */
+.stats-row { display: flex; gap: 12px; background: #020617; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--accent); }
+.mini-stat { font-size: 0.7rem; color: #94a3b8; white-space: nowrap; }
+.mini-stat b { color: #fff; font-family: monospace; font-size: 0.9rem; margin-left: 4px; }
+.chart-container { background: #fff; border-radius: 8px; height: 380px; padding: 10px; position: relative; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
 .data-table th { text-align: center; padding: 10px; border-bottom: 2px solid var(--border); position: sticky; top: 0; background: var(--card); }
-.data-table td { padding: 5px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.data-table input { width: 55px; text-align: center; }
+.data-table td { padding: 4px; text-align: center; }
+.accent { color: var(--accent); font-weight: bold; }

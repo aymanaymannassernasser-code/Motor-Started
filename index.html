@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.0 | Ayman Elkhodary</title>
+    <title>Motor Started v2.1 | Technical Sync</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.0</small></h1>
-            <div class="signature">by Ayman Elkhodary</div>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.1</small></h1>
+            <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
 
@@ -30,11 +30,11 @@
                     <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
                     <input type="range" id="loadScale" min="50" max="150" value="100">
                 </div>
-                <div class="readout">Rated Torque: <span id="resFLT">--</span> Nm</div>
+                <div class="readout">Rated Torque (Nm): <span id="resFLT" class="accent">--</span></div>
             </section>
 
             <section class="card scroll-card">
-                <h3>Data Point Grid</h3>
+                <h3>Data Point Grid (0-100% Speed)</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
@@ -45,7 +45,6 @@
         </aside>
 
         <article class="results">
-            
             <div class="scenario-section">
                 <div class="section-header">
                     <button id="btnDOL" class="btn-main">RUN DOL SIMULATION</button>
@@ -53,13 +52,11 @@
                         <div class="mini-stat"><span>Time:</span> <b id="dolTime">--</b></div>
                         <div class="mini-stat"><span>TCU:</span> <b id="dolTherm">--</b></div>
                         <div class="mini-stat"><span>Min Net T:</span> <b id="dolNet">--</b></div>
-                        <div class="mini-stat"><span>Min Start I:</span> <b id="dolMinI">--</b></div>
+                        <div class="mini-stat"><span>Max Start I:</span> <b id="dolMaxI">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartDOL"></canvas></div>
             </div>
-
-            <hr class="divider">
 
             <div class="scenario-section">
                 <div class="section-header">
@@ -73,7 +70,7 @@
                         <div class="mini-stat"><span>Time:</span> <b id="ssTime">--</b></div>
                         <div class="mini-stat"><span>TCU:</span> <b id="ssTherm">--</b></div>
                         <div class="mini-stat"><span>Min Net T:</span> <b id="ssNet">--</b></div>
-                        <div class="mini-stat"><span>Min Start I:</span> <b id="ssMinI">--</b></div>
+                        <div class="mini-stat"><span>Max Start I:</span> <b id="ssMaxI">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartSS"></canvas></div>
