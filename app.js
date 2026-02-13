@@ -1,6 +1,6 @@
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 
-// OEM Data Default from Uploaded Sheet
+// OEM Data Default
 const DEFAULT_GRID = {
     mt: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
     mc: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
@@ -32,7 +32,6 @@ function init() {
     refreshDropdown();
 }
 
-// Logic for Save/Load
 function saveCase() {
     const name = document.getElementById('caseName').value;
     if (!name) return alert("Enter case name");
@@ -40,7 +39,7 @@ function saveCase() {
         name, mVolts: document.getElementById('mVolts').value, mKW: document.getElementById('mKW').value,
         mFLC: document.getElementById('mFLC').value, mRPM: document.getElementById('mRPM').value,
         mJ: document.getElementById('mJ').value, lJ: document.getElementById('lJ').value,
-        motorType: document.getElementById('motorType').value, loadType: document.getElementById('loadType').value,
+        hStall: document.getElementById('hStall').value,
         mt: [...document.querySelectorAll('.val-mt')].map(e => e.value),
         mc: [...document.querySelectorAll('.val-mc')].map(e => e.value),
         lt: [...document.querySelectorAll('.val-lt')].map(e => e.value)
@@ -63,8 +62,7 @@ function loadCase() {
     document.getElementById('mRPM').value = d.mRPM;
     document.getElementById('mJ').value = d.mJ;
     document.getElementById('lJ').value = d.lJ;
-    document.getElementById('motorType').value = d.motorType;
-    document.getElementById('loadType').value = d.loadType;
+    document.getElementById('hStall').value = d.hStall;
     const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt');
     S_POINTS.forEach((_, i) => { mts[i].value = d.mt[i]; mcs[i].value = d.mc[i]; lts[i].value = d.lt[i]; });
     updateHeader();
@@ -93,31 +91,45 @@ function interpolate(x, xArr, yArr) {
 }
 
 function runSim(mode) {
-    const mFLC = parseFloat(document.getElementById('mFLC').value), mRPM = parseFloat(document.getElementById('mRPM').value);
+    const mFLC = parseFloat(document.getElementById('mFLC').value);
+    const mRPM = parseFloat(document.getElementById('mRPM').value);
     const totalJ = parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value);
     const fltNm = parseFloat(document.getElementById('resFLT').innerText);
-    const mType = document.getElementById('motorType').value, lType = document.getElementById('loadType').value;
+    const hStall = parseFloat(document.getElementById('hStall').value);
+    
     const tableMt = [...document.querySelectorAll('.val-mt')].map(e => e.value);
     const tableMc = [...document.querySelectorAll('.val-mc')].map(e => e.value);
     const tableLt = [...document.querySelectorAll('.val-lt')].map(e => e.value);
 
-    // Simulation Engine
+    // 1. Minimum Starting Current Calculation
+    let minPossibleI = 100;
+    for (let testI = 100; testI < 600; testI += 5) {
+        let isStallAtThisI = false;
+        for (let s = 0; s <= 100; s++) {
+            let rm = interpolate(s, S_POINTS, tableMt);
+            let rc = interpolate(s, S_POINTS, tableMc);
+            let rl = interpolate(s, S_POINTS, tableLt);
+            let vr = Math.min(1, testI / rc);
+            if ((rm * vr * vr) - rl <= 0.5) { isStallAtThisI = true; break; }
+        }
+        if (!isStallAtThisI) { minPossibleI = testI; break; }
+    }
+
+    // 2. Main Simulation Loop
     let time = 0, speedPerc = 0, thermal = 0, minNet = 999, maxA = 0;
-    const dt = 0.005, targetRadS = (mRPM * 2 * Math.PI) / 60;
+    const dt = 0.01, targetRadS = (mRPM * 2 * Math.PI) / 60;
     let speedRadS = 0, isStalled = false, finalTime = 0;
 
+    const ssLimitI = parseFloat(document.getElementById('ssLimitI').value);
+
     while (time < 60) {
-        let rawMt = (mType === 'custom') ? interpolate(speedPerc, S_POINTS, tableMt) : (mType === 'designB' ? 150 : 250);
+        let rawMt = interpolate(speedPerc, S_POINTS, tableMt);
         let rawMc = interpolate(speedPerc, S_POINTS, tableMc);
-        let curLt = (lType === 'grid') ? interpolate(speedPerc, S_POINTS, tableLt) : 10;
+        let curLt = interpolate(speedPerc, S_POINTS, tableLt);
 
         let activeMt = rawMt, activeMc = rawMc;
         if (mode === 'SS') {
-            const initI = parseFloat(document.getElementById('ssInitI').value);
-            const limI = parseFloat(document.getElementById('ssLimitI').value);
-            const rampT = parseFloat(document.getElementById('ssRamp').value);
-            let curLimit = (time < rampT) ? initI + (limI - initI) * (time / rampT) : limI;
-            let vr = Math.min(1, curLimit / rawMc);
+            let vr = Math.min(1, ssLimitI / rawMc);
             activeMt *= (vr * vr); activeMc *= vr;
         }
 
@@ -129,44 +141,42 @@ function runSim(mode) {
             if (netT <= 0.01 && time > 0.5) { isStalled = true; break; }
             speedRadS += ((netT / 100) * fltNm / totalJ) * dt;
             speedPerc = (speedRadS / targetRadS) * 100;
-            thermal += Math.pow(activeMc / 100, 2) * dt;
+            
+            // Standard Thermal Model: TCU increase relative to I^2 / Stall_Time
+            // Reference current for stall time is usually 600% FLC
+            let iRatio = (activeMc / 600);
+            thermal += (Math.pow(iRatio, 2) / hStall) * 100 * dt;
             finalTime = time;
         }
         time += dt;
         if (speedPerc >= 99) break;
     }
 
-    // Chart Data Generation (Smooth 101 points over Speed)
+    // 3. UI Update
+    const id = mode.toLowerCase();
+    document.getElementById(`${id}Time`).innerText = isStalled ? "STALL" : finalTime.toFixed(2) + "s";
+    const thermEl = document.getElementById(`${id}Therm`);
+    thermEl.innerText = thermal.toFixed(1) + "%";
+    thermEl.style.color = thermal > 100 ? "#f43f5e" : "";
+    document.getElementById(`${id}Net`).innerText = (minNet < 0 ? 0 : minNet).toFixed(1) + "%";
+    if (mode === 'SS') document.getElementById('ssMinI').innerText = minPossibleI + "%";
+
+    // 4. Chart Render
     let lbls = Array.from({length: 101}, (_, i) => i);
     let pMt = [], pMc = [], pLt = [];
     lbls.forEach(s => {
         let rm = interpolate(s, S_POINTS, tableMt);
         let rc = interpolate(s, S_POINTS, tableMc);
         let rl = interpolate(s, S_POINTS, tableLt);
-        
         if (mode === 'SS') {
-            // Visualize at Limit to show characteristic
-            const lim = parseFloat(document.getElementById('ssLimitI').value);
-            let vr = Math.min(1, lim / rc);
+            let vr = Math.min(1, ssLimitI / rc);
             pMt.push(rm * vr * vr); pMc.push(rc * vr);
         } else {
             pMt.push(rm); pMc.push(rc);
         }
         pLt.push(rl);
     });
-
-    updateUI(mode, finalTime, thermal, minNet, maxA, isStalled);
     renderChart(mode, lbls, pMt, pMc, pLt);
-}
-
-function updateUI(mode, t, tcu, net, peak, stalled) {
-    const id = mode.toLowerCase();
-    const timeEl = document.getElementById(`${id}Time`);
-    timeEl.innerText = stalled ? "STALL" : t.toFixed(2) + "s";
-    timeEl.style.color = stalled ? "#f43f5e" : "";
-    document.getElementById(`${id}Therm`).innerText = tcu.toFixed(1) + "%";
-    document.getElementById(`${id}Net`).innerText = (net < 0 ? 0 : net).toFixed(1) + "%";
-    document.getElementById(`${id}MaxI`).innerText = Math.round(peak);
 }
 
 function renderChart(m, labels, mt, mc, lt) {
@@ -183,8 +193,7 @@ function renderChart(m, labels, mt, mc, lt) {
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             scales: {
                 x: { title: { display: true, text: 'Speed %', color: '#94a3b8' } },
                 y: { min: 0, title: { display: true, text: 'Torque %', color: '#94a3b8' } },

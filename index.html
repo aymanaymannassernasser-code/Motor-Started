@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v3.3 | Professional Curves</title>
+    <title>Motor Started v3.4 | Thermal & Stall Analysis</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small>v3.3</small></h1>
+            <h1>Motor Started <small>v3.4</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -33,7 +33,7 @@
             </section>
 
             <section class="card">
-                <h3>⚙️ 1. Configuration</h3>
+                <h3>⚙️ 1. Configuration & Thermal</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
@@ -41,6 +41,8 @@
                     <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1485"></div>
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="12.8"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="2.9"></div>
+                    <div class="f-group"><label>Hot Stall Time (s)</label><input type="number" id="hStall" value="15"></div>
+                    <div class="f-group"><label>Cold Stall Time (s)</label><input type="number" id="cStall" value="22"></div>
                 </div>
                 
                 <div class="f-group mt-15">
@@ -48,7 +50,6 @@
                     <select id="motorType" class="input-select">
                         <option value="custom">Custom (Follow Data Grid)</option>
                         <option value="designB">Standard (Design B)</option>
-                        <option value="designC">High Torque (Design C)</option>
                     </select>
                 </div>
 
@@ -57,7 +58,6 @@
                     <select id="loadType" class="input-select">
                         <option value="grid">Follow Data Grid (Custom)</option>
                         <option value="centrifugal">Centrifugal (Fan/Pump)</option>
-                        <option value="constant">Constant Torque (Conveyor)</option>
                     </select>
                 </div>
                 <div class="readout">Rated Torque: <span id="resFLT" class="accent">--</span> Nm</div>
@@ -100,7 +100,7 @@
                         <div class="mini-stat">Start Time <b id="ssTime">--</b></div>
                         <div class="mini-stat">TCU % <b id="ssTherm">--</b></div>
                         <div class="mini-stat">Min Accel T <b id="ssNet">--</b></div>
-                        <div class="mini-stat">Peak I (A) <b id="ssMaxI">--</b></div>
+                        <div class="mini-stat">Min Start I <b id="ssMinI" style="color:var(--warning)">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartSS"></canvas></div>
