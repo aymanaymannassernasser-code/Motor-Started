@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.3 | Advanced Load Modeling</title>
+    <title>Motor Started v2.4 | Data-Driven Engineering</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.3</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.4</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -17,7 +17,7 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>1. Nameplate & Inertia</h3>
+                <h3>1. Motor Nameplate & Inertia</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
@@ -28,22 +28,23 @@
                 </div>
                 
                 <div class="f-group mt-15">
-                    <label>Load Type</label>
+                    <label>Load Modeling Method</label>
                     <select id="loadType" class="input-select">
-                        <option value="centrifugal">Centrifugal (Fan/Pump)</option>
+                        <option value="grid">Follow Data Grid (Custom)</option>
+                        <option value="centrifugal">Centrifugal (Standard Fan/Pump)</option>
                         <option value="constant">Constant Torque (Conveyor/Hoist)</option>
                     </select>
                 </div>
 
                 <div class="f-group mt-10">
-                    <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
-                    <input type="range" id="loadScale" min="0" max="150" value="100">
+                    <label>Sensitivity Factor: <span id="loadValDisplay" class="accent">1.0x</span></label>
+                    <input type="range" id="loadScale" min="0.5" max="1.5" step="0.05" value="1.0">
                 </div>
                 <div class="readout">Rated Torque: <span id="resFLT" class="accent">--</span> Nm</div>
             </section>
 
             <section class="card scroll-card">
-                <h3>2. Characteristic Grid (at 100% Load)</h3>
+                <h3>2. Performance Grid (Source of Truth)</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
@@ -54,23 +55,10 @@
         </aside>
 
         <article class="results">
-            <div class="scenario-section">
-                <div class="section-header">
-                    <button id="btnDOL" class="btn-main">Simulate Direct-On-Line</button>
-                    <div class="stats-row">
-                        <div class="mini-stat">Start Time: <b id="dolTime">--</b></div>
-                        <div class="mini-stat">TCU: <b id="dolTherm">--</b></div>
-                        <div class="mini-stat">Min Accel T: <b id="dolNet">--</b></div>
-                        <div class="mini-stat">Peak I: <b id="dolMaxI">--</b></div>
-                    </div>
-                </div>
-                <div class="chart-container"><canvas id="chartDOL"></canvas></div>
-            </div>
-
             <div class="scenario-section ss-highlight">
                 <div class="section-header">
                     <div class="ss-input-group">
-                        <button id="btnSS" class="btn-main ss-btn">Simulate Soft Start</button>
+                        <button id="btnSS" class="btn-main ss-btn">RUN SOFT START</button>
                         <div class="f-group inline"><label>Init I%</label><input type="number" id="ssInitI" value="300"></div>
                         <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
                         <div class="f-group inline"><label>Ramp(s)</label><input type="number" id="ssRamp" value="5"></div>
@@ -83,6 +71,19 @@
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartSS"></canvas></div>
+            </div>
+
+            <div class="scenario-section">
+                <div class="section-header">
+                    <button id="btnDOL" class="btn-main">RUN DOL SIMULATION</button>
+                    <div class="stats-row">
+                        <div class="mini-stat">Start Time: <b id="dolTime">--</b></div>
+                        <div class="mini-stat">TCU: <b id="dolTherm">--</b></div>
+                        <div class="mini-stat">Min Accel T: <b id="dolNet">--</b></div>
+                        <div class="mini-stat">Peak I: <b id="dolMaxI">--</b></div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="chartDOL"></canvas></div>
             </div>
         </article>
     </main>
