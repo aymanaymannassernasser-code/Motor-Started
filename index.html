@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.2 | Professional Engineering Suite</title>
+    <title>Motor Started v2.3 | Advanced Load Modeling</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.2</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.3</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -26,14 +26,24 @@
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="12.8"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="2.9"></div>
                 </div>
-                <div class="f-group mt-10">
-                    <label>Load Torque Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
-                    <input type="range" id="loadScale" min="50" max="150" value="100">
+                
+                <div class="f-group mt-15">
+                    <label>Load Type</label>
+                    <select id="loadType" class="input-select">
+                        <option value="centrifugal">Centrifugal (Fan/Pump)</option>
+                        <option value="constant">Constant Torque (Conveyor/Hoist)</option>
+                    </select>
                 </div>
+
+                <div class="f-group mt-10">
+                    <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
+                    <input type="range" id="loadScale" min="0" max="150" value="100">
+                </div>
+                <div class="readout">Rated Torque: <span id="resFLT" class="accent">--</span> Nm</div>
             </section>
 
             <section class="card scroll-card">
-                <h3>2. Motor Characteristic Grid</h3>
+                <h3>2. Characteristic Grid (at 100% Load)</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>

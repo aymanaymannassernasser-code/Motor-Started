@@ -1,27 +1,26 @@
 :root { --bg: #0b0f1a; --card: #161b2c; --accent: #22d3ee; --border: #2d3748; }
-body { background: var(--bg); color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; margin: 0; overflow: hidden; }
-header { padding: 12px 25px; border-bottom: 2px solid var(--accent); background: #05070a; display: flex; justify-content: space-between; align-items: center; }
+body { background: var(--bg); color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
+header { padding: 12px 25px; border-bottom: 2px solid var(--accent); background: #05070a; }
 .dashboard { display: grid; grid-template-columns: 480px 1fr; gap: 20px; padding: 15px; height: 93vh; }
 .sidebar { overflow-y: auto; padding-right: 10px; border-right: 1px solid var(--border); }
-.results { overflow-y: auto; padding-right: 10px; }
-.card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); }
-.scroll-card { flex-grow: 1; min-height: 400px; }
+.results { overflow-y: auto; padding-bottom: 30px; }
+.card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border); }
+.scroll-card { flex-grow: 1; min-height: 380px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .f-group label { display: block; font-size: 0.65rem; color: #94a3b8; margin-bottom: 3px; text-transform: uppercase; font-weight: 700; }
-input { width: 100%; background: #05070a; border: 1px solid var(--border); color: #fff; padding: 7px; border-radius: 5px; font-size: 0.9rem; transition: border 0.2s; }
-input:focus { border-color: var(--accent); outline: none; }
-.scenario-section { background: #1a202c; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid var(--border); }
+input, .input-select { width: 100%; background: #05070a; border: 1px solid var(--border); color: #fff; padding: 7px; border-radius: 5px; font-size: 0.85rem; }
+.mt-15 { margin-top: 15px; }
+.scenario-section { background: #1a202c; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid var(--border); }
 .ss-highlight { border-left: 4px solid #fbbf24; }
-.section-header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
-.ss-input-group { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.f-group.inline { width: 85px; }
-.btn-main { padding: 12px 25px; border: none; font-weight: 800; cursor: pointer; border-radius: 6px; background: var(--accent); color: #000; text-transform: uppercase; letter-spacing: 0.5px; }
+.section-header { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.ss-input-group { display: flex; align-items: center; gap: 15px; }
+.btn-main { padding: 10px 20px; border: none; font-weight: 800; cursor: pointer; border-radius: 6px; background: var(--accent); color: #000; text-transform: uppercase; }
 .ss-btn { background: #fbbf24; }
-.stats-row { display: flex; justify-content: space-between; background: #05070a; padding: 12px 20px; border-radius: 8px; border: 1px solid #4a5568; }
-.mini-stat { font-size: 0.75rem; color: #cbd5e0; }
-.mini-stat b { color: var(--accent); font-size: 1rem; margin-left: 8px; font-family: 'Courier New', monospace; }
-.chart-container { background: #fff; border-radius: 8px; height: 400px; padding: 15px; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.data-table th { padding: 10px; border-bottom: 2px solid var(--border); text-align: center; }
-.data-table input { width: 60px; text-align: center; font-size: 0.8rem; }
+.stats-row { display: flex; justify-content: space-between; background: #05070a; padding: 10px 15px; border-radius: 8px; border: 1px solid #4a5568; }
+.mini-stat { font-size: 0.7rem; color: #cbd5e0; }
+.mini-stat b { color: var(--accent); font-size: 0.95rem; margin-left: 5px; font-family: monospace; }
+.chart-container { background: #fff; border-radius: 8px; height: 380px; padding: 10px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: center; }
+.data-table th { padding: 8px; border-bottom: 2px solid var(--border); }
+.data-table input { width: 55px; text-align: center; }
 .accent { color: var(--accent); font-weight: bold; }
