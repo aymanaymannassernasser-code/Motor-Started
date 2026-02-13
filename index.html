@@ -3,19 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.7 | Heavy Duty Engineering</title>
+    <title>Motor Started v2.9 | Case Study Manager</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.7</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.9</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
 
     <main class="dashboard">
         <aside class="sidebar">
+            <section class="card case-manager">
+                <h3>Case Study Manager</h3>
+                <div class="f-group">
+                    <label>Saved Studies</label>
+                    <select id="caseDropdown" class="input-select">
+                        <option value="">-- Select Saved Case --</option>
+                    </select>
+                </div>
+                <div class="grid-2 mt-10">
+                    <input type="text" id="caseName" placeholder="Case Name...">
+                    <button id="btnSaveCase" class="btn-main ss-btn">Save Case</button>
+                </div>
+                <button id="btnClearCases" class="btn-text mt-10">Clear All Storage</button>
+            </section>
+
             <section class="card">
                 <h3>1. Configuration</h3>
                 <div class="grid-2">
@@ -61,11 +76,11 @@
         <article class="results">
             <div class="scenario-section dol-highlight">
                 <div class="section-header">
-                    <button id="btnDOL" class="btn-main">SIMULATE DIRECT-ON-LINE</button>
+                    <button id="btnDOL" class="btn-main">SIMULATE DOL</button>
                     <div class="stats-row">
                         <div class="mini-stat">Result: <b id="dolTime">--</b></div>
                         <div class="mini-stat">TCU: <b id="dolTherm">--</b></div>
-                        <div class="mini-stat">Min Accel T: <b id="dolNet">--</b></div>
+                        <div class="mini-stat">Net T: <b id="dolNet">--</b></div>
                         <div class="mini-stat">Peak I: <b id="dolMaxI">--</b></div>
                     </div>
                 </div>
@@ -83,7 +98,7 @@
                     <div class="stats-row">
                         <div class="mini-stat">Result: <b id="ssTime">--</b></div>
                         <div class="mini-stat">TCU: <b id="ssTherm">--</b></div>
-                        <div class="mini-stat">Min Accel T: <b id="ssNet">--</b></div>
+                        <div class="mini-stat">Net T: <b id="ssNet">--</b></div>
                         <div class="mini-stat">Peak I: <b id="ssMaxI">--</b></div>
                     </div>
                 </div>
