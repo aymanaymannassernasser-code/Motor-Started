@@ -20,7 +20,7 @@
                 <h3>Project Details</h3>
                 <div class="input-row">
                     <label>Project:-</label>
-                    <input type="text" id="projName" value="Industrial Digital Twin">
+                    <input type="text" id="projName" value="Custom Motor Analysis">
                 </div>
             </section>
 
@@ -49,10 +49,12 @@
             <section class="card">
                 <h3>DOL Curve Points (% FLT / % FLC)</h3>
                 <table class="data-table">
-                    <tr><th>Point</th><th>Torque%</th><th>Current%</th></tr>
-                    <tr><td>Locked (LRT)</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
-                    <tr><td>Pull-Up (Sag)</td><td><input type="number" id="pPUT" value="120"></td><td><input type="number" id="pPUC" value="580"></td></tr>
-                    <tr><td>Breakdown (BDT)</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
+                    <thead><tr><th>Point</th><th>Torque%</th><th>Current%</th></tr></thead>
+                    <tbody>
+                        <tr><td>Locked (LRT)</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
+                        <tr><td>Pull-Up (Sag)</td><td><input type="number" id="pPUT" value="130"></td><td><input type="number" id="pPUC" value="580"></td></tr>
+                        <tr><td>Breakdown (BDT)</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
+                    </tbody>
                 </table>
                 <div class="f-group mt-10">
                     <label>Load Torque Profile</label>
@@ -102,8 +104,7 @@
             </div>
 
             <footer class="tech-sources">
-                <p><strong>Physics Engine:</strong> Modified Kloss Analytical Model (Torque) & Admittance Circle Diagram (Current). 
-                <em>Reference: IEEE Std 399 (Brown Book) and Gafford Engineering Methods.</em></p>
+                <p><strong>Modeling Logic:</strong> Flexible Piecewise Hermite Interpolation. Curves respect user-defined LRT, Pull-up, and BDT anchors without forced mathematical sags. Current follows a verified low-slip admittance drop-off.</p>
             </footer>
             
             <div id="stallAlert" class="alert hidden">⚠️ STALL DETECTED: LOAD EXCEEDS MOTOR TORQUE</div>
