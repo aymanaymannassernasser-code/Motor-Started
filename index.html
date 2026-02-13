@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v3.0 | Heavy Engineering Suite</title>
+    <title>Motor Started v3.2 | OEM Validated</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small>v3.0</small></h1>
+            <h1>Motor Started <small>v3.2</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -18,7 +18,7 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card case-manager">
-                <h3><span class="icon">📁</span> Case Study Manager</h3>
+                <h3>📁 Case Study Manager</h3>
                 <div class="f-group">
                     <label>Saved Library</label>
                     <select id="caseDropdown" class="input-select">
@@ -33,7 +33,7 @@
             </section>
 
             <section class="card">
-                <h3><span class="icon">⚙️</span> 1. Configuration</h3>
+                <h3>⚙️ 1. Configuration</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
@@ -64,7 +64,7 @@
             </section>
 
             <section class="card scroll-card">
-                <h3><span class="icon">📊</span> 2. Performance Grid</h3>
+                <h3>📊 2. Performance Grid</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
@@ -92,7 +92,9 @@
                 <div class="section-header">
                     <div class="ss-input-group">
                         <button id="btnSS" class="btn-main ss-btn">SIMULATE SOFT START</button>
+                        <div class="f-group inline"><label>Init I%</label><input type="number" id="ssInitI" value="250"></div>
                         <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
+                        <div class="f-group inline"><label>Ramp (s)</label><input type="number" id="ssRamp" value="3"></div>
                     </div>
                     <div class="stats-row">
                         <div class="mini-stat">Start Time <b id="ssTime">--</b></div>

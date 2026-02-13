@@ -1,14 +1,22 @@
+/**
+ * Motor Started v3.2
+ * Default values synchronized with User OEM Data Sheet
+ */
+
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
+
+// Data Extracted from IMG_20260213_205206.jpg
 const DEFAULT_GRID = {
-    mt: [150, 145, 140, 135, 130, 140, 160, 180, 210, 220, 230, 240, 250, 240, 220, 180, 120, 50, 0],
-    mc: [600, 595, 590, 580, 570, 560, 550, 530, 500, 480, 450, 400, 350, 300, 250, 180, 120, 80, 10],
-    lt: [15, 16, 17, 18, 20, 22, 25, 28, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
+    mt: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
+    mc: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
+    lt: [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42]
 };
 
 let charts = { DOL: null, SS: null };
 
 function init() {
     const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
     S_POINTS.forEach((s, i) => {
         tbody.innerHTML += `<tr>
             <td><b>${s}%</b></td>
@@ -29,7 +37,6 @@ function init() {
     refreshDropdown();
 }
 
-// Logic for Save/Load (Serialized as in v2.9)
 function saveCase() {
     const name = document.getElementById('caseName').value;
     if (!name) return alert("Enter case name");
@@ -101,16 +108,21 @@ function runSim(mode) {
     let time = 0, speedPerc = 0, thermal = 0, minNet = 999, maxA = 0;
     const dt = 0.005, targetRadS = (mRPM * 2 * Math.PI) / 60;
     let speedRadS = 0, isStalled = false, finalTime = 0;
+    
+    let tLabels = [], cMt = [], cMc = [], cLt = [];
 
-    while (time < 40) {
+    while (time < 60) {
         let rawMt = (mType === 'custom') ? interpolate(speedPerc, S_POINTS, tableMt) : (mType === 'designB' ? ((speedPerc < 80) ? 150 - (speedPerc * 0.25) : 130 + (speedPerc - 80) * 8 - Math.pow(speedPerc-80, 2) * 0.35) : (speedPerc < 70 ? 250 - (speedPerc * 0.8) : 194 + (speedPerc-70)*3 - Math.pow(speedPerc-70, 2)*0.15));
         let rawMc = interpolate(speedPerc, S_POINTS, tableMc);
         let curLt = (lType === 'grid') ? interpolate(speedPerc, S_POINTS, tableLt) : (lType === 'centrifugal' ? parseFloat(tableLt[0]) + (parseFloat(tableLt[18]) - parseFloat(tableLt[0])) * Math.pow(speedPerc/100, 2) : parseFloat(tableLt[18]));
 
         let activeMt = rawMt, activeMc = rawMc;
         if (mode === 'SS') {
-            const lim = parseFloat(document.getElementById('ssLimitI').value);
-            let vr = Math.min(1, lim / rawMc);
+            const initI = parseFloat(document.getElementById('ssInitI').value);
+            const limI = parseFloat(document.getElementById('ssLimitI').value);
+            const rampT = parseFloat(document.getElementById('ssRamp').value);
+            let curLimit = (time < rampT) ? initI + (limI - initI) * (time / rampT) : limI;
+            let vr = Math.min(1, curLimit / rawMc);
             activeMt *= (vr * vr); activeMc *= vr;
         }
 
@@ -119,34 +131,26 @@ function runSim(mode) {
         if ((activeMc * mFLC / 100) > maxA) maxA = (activeMc * mFLC / 100);
 
         if (speedPerc < 98.5) {
-            if (netT <= 0.01) { isStalled = true; }
-            else {
-                speedRadS += ((netT / 100) * fltNm / totalJ) * dt;
-                speedPerc = (speedRadS / targetRadS) * 100;
-                thermal += Math.pow(activeMc / 100, 2) * dt;
-                finalTime = time;
-            }
+            if (netT <= 0.01 && time > 0.5) { isStalled = true; break; }
+            speedRadS += ((netT / 100) * fltNm / totalJ) * dt;
+            speedPerc = (speedRadS / targetRadS) * 100;
+            thermal += Math.pow(activeMc / 100, 2) * dt;
+            finalTime = time;
+        }
+        
+        if (Math.round(time * 100) % 20 === 0) {
+            tLabels.push(time.toFixed(1)); cMt.push(activeMt); cMc.push(activeMc); cLt.push(curLt);
         }
         time += dt;
+        if (speedPerc >= 99) break;
     }
     updateUI(mode, finalTime, thermal, minNet, maxA, isStalled);
-    
-    let labels = Array.from({length: 101}, (_, i) => i);
-    let pMt = [], pMc = [], pLt = [];
-    labels.forEach(s => {
-        let m = (mType === 'custom') ? interpolate(s, S_POINTS, tableMt) : (mType === 'designB' ? ((s < 80) ? 150 - (s * 0.25) : 130 + (s - 80) * 8 - Math.pow(s-80, 2) * 0.35) : (s < 70 ? 250 - (s * 0.8) : 194 + (s-70)*3 - Math.pow(s-70, 2)*0.15));
-        let c = interpolate(s, S_POINTS, tableMc), l = (lType === 'grid') ? interpolate(s, S_POINTS, tableLt) : (lType === 'centrifugal' ? parseFloat(tableLt[0]) + (parseFloat(tableLt[18]) - parseFloat(tableLt[0])) * Math.pow(s/100, 2) : parseFloat(tableLt[18]));
-        if (mode === 'SS') { const lim = parseFloat(document.getElementById('ssLimitI').value); let vr = Math.min(1, lim / c); pMt.push(m * vr * vr); pMc.push(c * vr); } else { pMt.push(m); pMc.push(c); }
-        pLt.push(l);
-    });
-    renderChart(mode, labels, pMt, pMc, pLt);
+    renderChart(mode, tLabels, cMt, cMc, cLt);
 }
 
 function updateUI(mode, t, tcu, net, peak, stalled) {
     const id = mode.toLowerCase();
-    const timeEl = document.getElementById(`${id}Time`);
-    timeEl.innerText = stalled ? "STALL" : t.toFixed(2) + "s";
-    timeEl.style.color = stalled ? "#f43f5e" : "";
+    document.getElementById(`${id}Time`).innerText = stalled ? "STALL" : t.toFixed(2) + "s";
     document.getElementById(`${id}Therm`).innerText = tcu.toFixed(1) + "%";
     document.getElementById(`${id}Net`).innerText = (net < 0 ? 0 : net).toFixed(1) + "%";
     document.getElementById(`${id}MaxI`).innerText = Math.round(peak);
@@ -157,11 +161,11 @@ function renderChart(m, l, mt, mc, lt) {
     if (charts[m]) charts[m].destroy();
     charts[m] = new Chart(ctx, {
         type: 'line', data: { labels: l, datasets: [
-            { label: 'Torque %', data: mt, borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.3 },
+            { label: 'Torque %', data: mt, borderColor: '#22d3ee', borderWidth: 2, pointRadius: 0 },
             { label: 'Load %', data: lt, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 },
             { label: 'Current %', data: mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0 }
         ]},
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0 }, y1: { position: 'right', min: 0, grid: { drawOnChartArea: false } } } }
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { title: {display:true, text:'Time (s)', color:'#fff'}}, y: { min: 0 }, y1: { position: 'right', min: 0, grid: { drawOnChartArea: false } } } }
     });
 }
 window.onload = init;
