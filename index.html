@@ -3,37 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v3.6 | Preset Library</title>
+    <title>Motor Started v3.7 | Thermal Stall Analysis</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small>v3.6</small></h1>
+            <h1>Motor Started <small>v3.7</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
 
     <main class="dashboard">
         <aside class="sidebar">
-            <section class="card case-manager">
-                <h3>📁 Case Study Manager</h3>
-                <div class="f-group">
-                    <label>Saved Library</label>
-                    <select id="caseDropdown" class="input-select">
-                        <option value="">-- Select Saved Case --</option>
-                    </select>
-                </div>
-                <div class="grid-2 mt-10">
-                    <input type="text" id="caseName" placeholder="New Case Name...">
-                    <button id="btnSaveCase" class="btn-main save-btn">Save Case</button>
-                </div>
-                <button id="btnClearCases" class="btn-text mt-10">Wipe Local Storage</button>
-            </section>
-
             <section class="card">
-                <h3>⚙️ 1. Configuration & Presets</h3>
+                <h3>⚙️ 1. Config & Presets</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
                     <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="48"></div>
@@ -43,19 +28,17 @@
                 </div>
 
                 <div class="f-group mt-15">
-                    <label>Quick-Inject Presets into Grid</label>
+                    <label>Inject Presets</label>
                     <div class="grid-2">
                         <select id="motorPreset" class="input-select">
-                            <option value="current">-- Motor Preset --</option>
-                            <option value="oem">OEM Default (450kW)</option>
-                            <option value="designC">NEMA Design C (High T)</option>
-                            <option value="highSlip">High Slip / Legacy</option>
+                            <option value="oem">OEM Default</option>
+                            <option value="designC">Design C</option>
+                            <option value="highSlip">High Slip</option>
                         </select>
                         <select id="loadPreset" class="input-select">
-                            <option value="current">-- Load Preset --</option>
-                            <option value="oem">OEM Pump Load</option>
-                            <option value="centrifugal">Square Law (Fan)</option>
-                            <option value="constant">Constant (Conveyor)</option>
+                            <option value="oem">OEM Pump</option>
+                            <option value="centrifugal">Square Law</option>
+                            <option value="constant">Constant T</option>
                         </select>
                     </div>
                 </div>
@@ -63,11 +46,9 @@
             </section>
 
             <section class="card scroll-card">
-                <h3>📊 2. Performance Grid</h3>
+                <h3>📊 2. Data Grid</h3>
                 <table class="data-table">
-                    <thead>
-                        <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
-                    </thead>
+                    <thead><tr><th>Spd%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr></thead>
                     <tbody id="tableBody"></tbody>
                 </table>
             </section>
@@ -81,7 +62,6 @@
                         <div class="mini-stat">Start Time <b id="dolTime">--</b></div>
                         <div class="mini-stat">TCU % <b id="dolTherm">--</b></div>
                         <div class="mini-stat">Min Accel T <b id="dolNet">--</b></div>
-                        <div class="mini-stat">Peak I (A) <b id="dolMaxI">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartDOL"></canvas></div>
@@ -90,13 +70,14 @@
             <div class="scenario-section ss-highlight">
                 <div class="section-header">
                     <div class="ss-input-group">
-                        <button id="btnSS" class="btn-main ss-btn">SIMULATE SOFT START</button>
-                        <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
+                        <button id="btnSS" class="btn-main ss-btn">SIMULATE SS</button>
+                        <div class="f-group inline"><label>Init I%</label><input type="number" id="ssInitI" value="200"></div>
+                        <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="400"></div>
+                        <div class="f-group inline"><label>Ramp (s)</label><input type="number" id="ssRamp" value="3"></div>
                     </div>
                     <div class="stats-row">
-                        <div class="mini-stat">Start Time <b id="ssTime">--</b></div>
+                        <div class="mini-stat">Time/Trip <b id="ssTime">--</b></div>
                         <div class="mini-stat">TCU % <b id="ssTherm">--</b></div>
-                        <div class="mini-stat">Min Accel T <b id="ssNet">--</b></div>
                         <div class="mini-stat">Min Start I <b id="ssMinI">--</b></div>
                     </div>
                 </div>
