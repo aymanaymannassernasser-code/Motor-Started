@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v3.5 | Precision Engineering</title>
+    <title>Motor Started v3.6 | Preset Library</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small>v3.5</small></h1>
+            <h1>Motor Started <small>v3.6</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -33,16 +33,31 @@
             </section>
 
             <section class="card">
-                <h3>⚙️ 1. Configuration & Thermal</h3>
+                <h3>⚙️ 1. Configuration & Presets</h3>
                 <div class="grid-2">
-                    <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
                     <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="48"></div>
                     <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1485"></div>
-                    <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="12.8"></div>
-                    <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="2.9"></div>
-                    <div class="f-group"><label>Hot Stall Time (s)</label><input type="number" id="hStall" value="15"></div>
-                    <div class="f-group"><label>Cold Stall Time (s)</label><input type="number" id="cStall" value="22"></div>
+                    <div class="f-group"><label>Total J (kgm²)</label><input type="number" id="totalJ" value="15.7"></div>
+                    <div class="f-group"><label>Hot Stall (s)</label><input type="number" id="hStall" value="15"></div>
+                </div>
+
+                <div class="f-group mt-15">
+                    <label>Quick-Inject Presets into Grid</label>
+                    <div class="grid-2">
+                        <select id="motorPreset" class="input-select">
+                            <option value="current">-- Motor Preset --</option>
+                            <option value="oem">OEM Default (450kW)</option>
+                            <option value="designC">NEMA Design C (High T)</option>
+                            <option value="highSlip">High Slip / Legacy</option>
+                        </select>
+                        <select id="loadPreset" class="input-select">
+                            <option value="current">-- Load Preset --</option>
+                            <option value="oem">OEM Pump Load</option>
+                            <option value="centrifugal">Square Law (Fan)</option>
+                            <option value="constant">Constant (Conveyor)</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="readout">Rated Torque: <span id="resFLT" class="accent">--</span> Nm</div>
             </section>
@@ -61,7 +76,7 @@
         <article class="results">
             <div class="scenario-section dol-highlight">
                 <div class="section-header">
-                    <button id="btnDOL" class="btn-main">SIMULATE DOL START</button>
+                    <button id="btnDOL" class="btn-main">SIMULATE DOL</button>
                     <div class="stats-row">
                         <div class="mini-stat">Start Time <b id="dolTime">--</b></div>
                         <div class="mini-stat">TCU % <b id="dolTherm">--</b></div>
@@ -76,9 +91,7 @@
                 <div class="section-header">
                     <div class="ss-input-group">
                         <button id="btnSS" class="btn-main ss-btn">SIMULATE SOFT START</button>
-                        <div class="f-group inline"><label>Init I%</label><input type="number" id="ssInitI" value="250"></div>
                         <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
-                        <div class="f-group inline"><label>Ramp (s)</label><input type="number" id="ssRamp" value="3"></div>
                     </div>
                     <div class="stats-row">
                         <div class="mini-stat">Start Time <b id="ssTime">--</b></div>
