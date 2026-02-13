@@ -1,20 +1,37 @@
-/* Motor Started v1.8 */
+/* Motor Started v1.9 */
 :root { --bg: #0f172a; --card: #1e293b; --accent: #22d3ee; --text: #f1f5f9; --border: #334155; }
-body { background: var(--bg); color: var(--text); font-family: system-ui; margin: 0; overflow: hidden; }
-header { padding: 10px 20px; border-bottom: 2px solid var(--accent); background: #020617; }
-.dashboard { display: grid; grid-template-columns: 360px 1fr; gap: 20px; padding: 15px; height: 92vh; }
-.sidebar { overflow-y: auto; display: flex; flex-direction: column; }
-.card { background: var(--card); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; }
+header { padding: 10px 25px; border-bottom: 2px solid var(--accent); background: #020617; }
+
+.dashboard { display: grid; grid-template-columns: 420px 1fr; gap: 20px; padding: 15px; height: 92vh; }
+.sidebar { overflow-y: auto; display: flex; flex-direction: column; border-right: 1px solid var(--border); padding-right: 15px; }
+.results { overflow-y: auto; padding-right: 10px; }
+
+.card { background: var(--card); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
 .scroll-card { flex-grow: 1; overflow-y: auto; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.f-group label { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; }
-input { width: 100%; background: #020617; border: 1px solid var(--border); color: white; padding: 5px; border-radius: 4px; font-size: 0.8rem; }
-.action-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-.btn-main { padding: 15px; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; text-transform: uppercase; }
-.ss-btn { background: #fbbf24; color: #000; font-size: 1rem; }
-.data-table { width: 100%; font-size: 0.7rem; text-align: center; }
-.data-table input { width: 40px; text-align: center; border: none; background: rgba(255,255,255,0.05); }
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
-.stat-card { background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
-.chart-wrapper { background: #fff; border-radius: 8px; height: 500px; padding: 10px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.f-group label { display: block; font-size: 0.65rem; color: #94a3b8; margin-bottom: 2px; text-transform: uppercase; }
+input { width: 100%; background: #020617; border: 1px solid var(--border); color: white; padding: 6px; border-radius: 4px; font-size: 0.85rem; }
+
+.scenario-section { background: rgba(30, 41, 59, 0.5); border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border); }
+.section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; gap: 20px; }
+
+.ss-controls { display: flex; align-items: center; gap: 15px; flex-grow: 1; }
+.ss-controls .f-group { width: 80px; }
+
+.btn-main { padding: 10px 20px; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; background: var(--accent); color: #020617; }
+.ss-btn { background: #fbbf24; }
+
+.stats-row { display: flex; gap: 15px; background: #020617; padding: 8px 15px; border-radius: 6px; border: 1px solid var(--accent); }
+.mini-stat { font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
+.mini-stat b { color: #fff; font-family: monospace; font-size: 0.9rem; margin-left: 4px; }
+
+.chart-container { background: #fff; border-radius: 8px; height: 320px; padding: 10px; }
+.divider { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
 .accent { color: var(--accent); font-weight: bold; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.data-table th { text-align: center; padding: 8px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); }
+.data-table td { padding: 4px; text-align: center; }
+.data-table input { width: 50px; text-align: center; }
