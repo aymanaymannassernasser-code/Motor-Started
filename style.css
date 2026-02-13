@@ -7,102 +7,40 @@
     --danger: #f43f5e;
 }
 
-body { 
-    background: var(--bg); 
-    color: #e2e8f0; 
-    font-family: 'Inter', sans-serif; 
-    margin: 0; 
-    height: 100vh;
-    overflow: hidden; 
-}
-
-header { 
-    padding: 12px 25px; 
-    border-bottom: 2px solid var(--accent); 
-    background: #05070a;
-}
-
+body { background: var(--bg); color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+header { padding: 12px 25px; border-bottom: 2px solid var(--accent); background: #05070a; }
 h1 { margin: 0; font-size: 1.4rem; color: #fff; text-transform: uppercase; }
 h1 small { font-size: 0.6em; color: var(--accent); }
+.signature { font-size: 0.7rem; color: #94a3b8; font-family: 'JetBrains Mono'; }
 
-.dashboard { 
-    display: grid; 
-    grid-template-columns: 460px 1fr; 
-    gap: 20px; 
-    padding: 20px; 
-    height: calc(100vh - 60px);
-}
-
+.dashboard { display: grid; grid-template-columns: 460px 1fr; gap: 20px; padding: 20px; height: calc(100vh - 60px); }
 .sidebar { overflow-y: auto; padding-right: 10px; }
 .results { overflow-y: auto; padding-bottom: 80px; }
 
-.card { 
-    background: var(--card); 
-    padding: 18px; 
-    border-radius: 10px; 
-    margin-bottom: 15px; 
-    border: 1px solid var(--border);
-}
-
+.card { background: var(--card); padding: 18px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border); }
 .case-manager { border-color: var(--warning); background: #1a1a2e; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .f-group label { display: block; font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; font-weight: 700; text-transform: uppercase; }
 .f-group.inline { width: 85px; }
 
-input, .input-select { 
-    width: 100%; 
-    background: #05070a; 
-    border: 1px solid var(--border); 
-    color: #fff; 
-    padding: 8px; 
-    border-radius: 5px; 
-    font-size: 0.85rem; 
-}
+input, .input-select { width: 100%; background: #05070a; border: 1px solid var(--border); color: #fff; padding: 8px; border-radius: 5px; font-size: 0.85rem; }
 
-.scenario-section { 
-    background: #0f172a; 
-    border-radius: 12px; 
-    padding: 20px; 
-    margin-bottom: 25px; 
-    border: 1px solid var(--border); 
-}
-
+.scenario-section { background: #0f172a; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid var(--border); }
 .dol-highlight { border-top: 5px solid var(--accent); }
 .ss-highlight { border-top: 5px solid var(--warning); }
 
 .ss-input-group { display: flex; align-items: flex-end; gap: 10px; }
-
-.btn-main { 
-    padding: 12px; 
-    border: none; 
-    font-weight: 800; 
-    cursor: pointer; 
-    border-radius: 6px; 
-    background: var(--accent); 
-    color: #000; 
-    text-transform: uppercase; 
-}
-
+.btn-main { padding: 12px; border: none; font-weight: 800; cursor: pointer; border-radius: 6px; background: var(--accent); color: #000; text-transform: uppercase; }
 .save-btn, .ss-btn { background: var(--warning); }
 
-.stats-row { 
-    display: grid; 
-    grid-template-columns: repeat(4, 1fr); 
-    background: #020617; 
-    padding: 15px; 
-    border-radius: 8px; 
-    margin-top: 15px;
-}
-
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); background: #020617; padding: 15px; border-radius: 8px; margin-top: 15px; }
 .mini-stat { font-size: 0.65rem; color: #64748b; font-weight: 700; text-align: center; }
 .mini-stat b { display: block; color: #fff; font-size: 1.1rem; font-family: 'JetBrains Mono'; margin-top: 5px; }
 
 .chart-container { background: #fff; border-radius: 8px; height: 380px; padding: 15px; }
-
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-.data-table input { width: 100%; background: transparent; border: none; text-align: center; color: #fff; }
-
+.data-table input { width: 100%; background: transparent; border: none; text-align: center; color: #fff; font-weight: bold; }
 .readout { margin-top: 15px; background: #020617; padding: 12px; border-radius: 6px; text-align: center; border: 1px dashed var(--border); }
 .accent { color: var(--accent); font-weight: 800; }
-.btn-text { background: none; border: none; color: #475569; text-decoration: underline; cursor: pointer; }
+.btn-text { background: none; border: none; color: #475569; text-decoration: underline; cursor: pointer; font-size: 0.7rem; }
