@@ -1,4 +1,4 @@
-/* Motor Started v1.6 */
+/* Motor Started v1.7 */
 :root {
     --bg: #0f172a; --card: #1e293b; --accent: #22d3ee;
     --text: #f1f5f9; --border: #334155; --danger: #f43f5e;
@@ -7,15 +7,19 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-
 header { padding: 12px 25px; border-bottom: 2px solid var(--accent); background: #020617; }
 .dashboard { display: grid; grid-template-columns: 380px 1fr; gap: 20px; padding: 15px; height: 90vh; }
 .sidebar { overflow-y: auto; padding-right: 10px; display: flex; flex-direction: column; }
-.card { background: var(--card); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border); }
-.scroll-card { flex-grow: 1; overflow-y: auto; min-height: 300px; }
+.card { background: var(--card); padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
+.scroll-card { flex-grow: 1; overflow-y: auto; min-height: 250px; }
 .highlight { border-color: #fbbf24; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .f-group label { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 3px; font-weight: bold; }
 input { width: 100%; background: #020617; border: 1px solid var(--border); color: white; padding: 6px; border-radius: 4px; font-size: 0.8rem; }
+
+.action-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+.btn-main { padding: 12px; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; color: #020617; background: var(--accent); text-transform: uppercase; }
+.ss-btn { background: #fbbf24; }
+
 .readout { background: #020617; padding: 8px; margin-top: 8px; border-radius: 4px; font-size: 0.8rem; border-left: 3px solid var(--accent); }
 .accent { color: var(--accent); }
-.btn-main { width: 100%; padding: 10px; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; color: #020617; margin-top: 5px; text-transform: uppercase; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
 .data-table th { position: sticky; top: 0; background: var(--card); padding: 5px; border-bottom: 1px solid var(--border); }
 .data-table input { width: 45px; padding: 2px; text-align: center; border: none; background: rgba(255,255,255,0.05); }
