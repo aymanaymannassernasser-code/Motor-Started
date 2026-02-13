@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Motor Started | Ayman Elkhodary</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
 </head>
 <body>
     <header>
@@ -18,11 +17,7 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>Project Details</h3>
-                <div class="input-row">
-                    <label>Project:-</label>
-                    <input type="text" id="projName" value="New Installation">
-                </div>
+                <h3>Project:- <input type="text" id="projName" value="Industrial Pump System"></h3>
             </section>
 
             <section class="card">
@@ -33,13 +28,13 @@
                     <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="135"></div>
                     <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1475"></div>
                 </div>
-                <div class="readout">Rated Torque (FLT): <span id="resFLT">485.6</span> Nm</div>
+                <div class="readout">Rated Torque (FLT): <span id="resFLT">--</span> Nm</div>
                 
                 <div class="grid-2 mt-10">
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="1.2"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="3.5"></div>
                 </div>
-                <div class="readout accent">Total Inertia: <span id="resTotalJ">4.7</span> kgm²</div>
+                <div class="readout accent">Total Inertia: <span id="resTotalJ">--</span> kgm²</div>
                 
                 <div class="f-group mt-10">
                     <label>Permissible Stall Time (s)</label>
@@ -62,36 +57,49 @@
                         <option value="const">Constant (100%)</option>
                     </select>
                 </div>
+                <button id="btnDOL" class="btn-main mt-10">1. SIMULATE DOL SCENARIO</button>
             </section>
 
             <section class="card highlight">
                 <h3>Soft Starter Settings</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Initial Current%</label><input type="number" id="ssInitI" value="300"></div>
-                    <div class="f-group"><label>Current Limit%</label><input type="number" id="ssLimitI" value="300"></div>
+                    <div class="f-group"><label>Current Limit%</label><input type="number" id="ssLimitI" value="350"></div>
                 </div>
                 <div class="f-group mt-10">
                     <label>Ramp Time (s)</label>
-                    <input type="number" id="ssRamp" value="0">
+                    <input type="number" id="ssRamp" value="5">
                 </div>
+                <button id="btnSS" class="btn-main mt-10">2. SIMULATE SOFT START</button>
             </section>
-
-            <button id="runSim" class="btn-main">SIMULATE STARTING SCENARIO</button>
         </aside>
 
         <article class="results">
-            <div class="stats-grid">
-                <div class="stat-card"><h5>Start Time</h5><p id="outTime">--</p></div>
-                <div class="stat-card"><h5>Thermal Used</h5><p id="outThermal">--</p></div>
-                <div class="stat-card"><h5>Min Net Torque</h5><p id="outMinTorque">--</p></div>
-                <div class="stat-card"><h5>Min Start Current</h5><p id="outMinI">--</p></div>
+            <div class="scenario-section">
+                <h2 class="section-title">Scenario A: Direct-On-Line (DOL)</h2>
+                <div class="stats-grid" id="statsDOL">
+                    <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Start Current</h5><p class="val">--</p></div>
+                </div>
+                <div class="chart-wrapper"><canvas id="chartDOL"></canvas></div>
             </div>
 
-            <div class="chart-container">
-                <canvas id="mainChart"></canvas>
+            <hr class="divider">
+
+            <div class="scenario-section">
+                <h2 class="section-title">Scenario B: Soft Starter</h2>
+                <div class="stats-grid" id="statsSS">
+                    <div class="stat-card"><h5>Start Time</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Thermal Used</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Net Torque</h5><p class="val">--</p></div>
+                    <div class="stat-card"><h5>Min Start Current</h5><p class="val">--</p></div>
+                </div>
+                <div class="chart-wrapper"><canvas id="chartSS"></canvas></div>
             </div>
             
-            <div id="stallAlert" class="alert hidden">⚠️ CRITICAL STALL DETECTED: LOAD > MOTOR TORQUE</div>
+            <div id="stallAlert" class="alert hidden">⚠️ STALL DETECTED: INSUFFICIENT MOTOR TORQUE</div>
         </article>
     </main>
 
