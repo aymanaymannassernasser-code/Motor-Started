@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v3.7 | Thermal Stall Analysis</title>
+    <title>Motor Started v3.8 | Professional Engineering Suite</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small>v3.7</small></h1>
+            <h1>Motor Started <small>v3.8</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -18,7 +18,7 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>⚙️ 1. Config & Presets</h3>
+                <h3>⚙️ 1. Configuration & Presets</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
                     <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="48"></div>
@@ -28,16 +28,18 @@
                 </div>
 
                 <div class="f-group mt-15">
-                    <label>Inject Presets</label>
+                    <label>Quick-Inject Grid Presets</label>
                     <div class="grid-2">
                         <select id="motorPreset" class="input-select">
+                            <option value="current">-- Motor --</option>
                             <option value="oem">OEM Default</option>
-                            <option value="designC">Design C</option>
+                            <option value="designC">NEMA Design C</option>
                             <option value="highSlip">High Slip</option>
                         </select>
                         <select id="loadPreset" class="input-select">
+                            <option value="current">-- Load --</option>
                             <option value="oem">OEM Pump</option>
-                            <option value="centrifugal">Square Law</option>
+                            <option value="centrifugal">Centrifugal</option>
                             <option value="constant">Constant T</option>
                         </select>
                     </div>
@@ -46,9 +48,11 @@
             </section>
 
             <section class="card scroll-card">
-                <h3>📊 2. Data Grid</h3>
+                <h3>📊 2. Performance Grid (19-Point)</h3>
                 <table class="data-table">
-                    <thead><tr><th>Spd%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr></thead>
+                    <thead>
+                        <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
+                    </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
             </section>
@@ -78,7 +82,7 @@
                     <div class="stats-row">
                         <div class="mini-stat">Time/Trip <b id="ssTime">--</b></div>
                         <div class="mini-stat">TCU % <b id="ssTherm">--</b></div>
-                        <div class="mini-stat">Min Start I <b id="ssMinI">--</b></div>
+                        <div class="mini-stat">Min Start I <b id="ssMinI" style="color:var(--warning)">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartSS"></canvas></div>
