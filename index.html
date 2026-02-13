@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Started | Ayman Elkhodary</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Motor Started</h1>
+            <div class="signature">by Ayman Elkhodary</div>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <aside class="sidebar">
+            <section class="card">
+                <h3>Project Details</h3>
+                <div class="input-row">
+                    <label>Project:-</label>
+                    <input type="text" id="projName" value="New Installation">
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>General Motor & Load Data</h3>
+                <div class="grid-2">
+                    <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="400"></div>
+                    <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="75"></div>
+                    <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="135"></div>
+                    <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1475"></div>
+                </div>
+                <div class="readout">Rated Torque (FLT): <span id="resFLT">485.6</span> Nm</div>
+                
+                <div class="grid-2 mt-10">
+                    <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="1.2"></div>
+                    <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="3.5"></div>
+                </div>
+                <div class="readout accent">Total Inertia: <span id="resTotalJ">4.7</span> kgm²</div>
+                
+                <div class="f-group mt-10">
+                    <label>Permissible Stall Time (s)</label>
+                    <input type="number" id="tStall" value="15">
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>DOL Curve Points (% FLT / % FLC)</h3>
+                <table class="data-table">
+                    <tr><th>Point</th><th>Speed%</th><th>Torque%</th><th>Current%</th></tr>
+                    <tr><td>LRT</td><td>0</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
+                    <tr><td>Pull-Up</td><td>25</td><td><input type="number" id="pPUT" value="130"></td><td><input type="number" id="pPUC" value="550"></td></tr>
+                    <tr><td>Breakdown</td><td>85</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
+                </table>
+                <div class="f-group mt-10">
+                    <label>Load Torque Profile</label>
+                    <select id="loadProfile">
+                        <option value="fan">Fan / Pump (Square Law)</option>
+                        <option value="const">Constant (100%)</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="card highlight">
+                <h3>Soft Starter Settings</h3>
+                <div class="grid-2">
+                    <div class="f-group"><label>Initial Current%</label><input type="number" id="ssInitI" value="300"></div>
+                    <div class="f-group"><label>Current Limit%</label><input type="number" id="ssLimitI" value="300"></div>
+                </div>
+                <div class="f-group mt-10">
+                    <label>Ramp Time (s)</label>
+                    <input type="number" id="ssRamp" value="0">
+                </div>
+            </section>
+
+            <button id="runSim" class="btn-main">SIMULATE STARTING SCENARIO</button>
+        </aside>
+
+        <article class="results">
+            <div class="stats-grid">
+                <div class="stat-card"><h5>Start Time</h5><p id="outTime">--</p></div>
+                <div class="stat-card"><h5>Thermal Used</h5><p id="outThermal">--</p></div>
+                <div class="stat-card"><h5>Min Net Torque</h5><p id="outMinTorque">--</p></div>
+                <div class="stat-card"><h5>Min Start Current</h5><p id="outMinI">--</p></div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+            
+            <div id="stallAlert" class="alert hidden">⚠️ CRITICAL STALL DETECTED: LOAD > MOTOR TORQUE</div>
+        </article>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
