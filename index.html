@@ -1,127 +1,87 @@
-/**
- * Motor Started v1.8
- * Logic: Cubic Spline Interpolation for realistic motor curves.
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Started v2.0 | Ayman Elkhodary</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.0</small></h1>
+            <div class="signature">by Ayman Elkhodary</div>
+        </div>
+    </header>
 
-const speedPoints = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
-const defaultData = {
-    mt: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
-    mc: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
-    lt: [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42]
-};
+    <main class="dashboard">
+        <aside class="sidebar">
+            <section class="card">
+                <h3>System & Motor Data</h3>
+                <div class="grid-2">
+                    <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
+                    <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
+                    <div class="f-group"><label>Full Load Cur (A)</label><input type="number" id="mFLC" value="48"></div>
+                    <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1485"></div>
+                    <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="12.8"></div>
+                    <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="2.9"></div>
+                </div>
+                <div class="f-group mt-10">
+                    <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
+                    <input type="range" id="loadScale" min="50" max="150" value="100">
+                </div>
+                <div class="readout">Rated Torque: <span id="resFLT">--</span> Nm</div>
+            </section>
 
-let mainChart = null;
+            <section class="card scroll-card">
+                <h3>Data Point Grid</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </section>
+        </aside>
 
-function init() {
-    const tbody = document.getElementById('tableBody');
-    speedPoints.forEach((s, i) => {
-        tbody.innerHTML += `<tr>
-            <td>${s}%</td>
-            <td><input type="number" class="val-mt" value="${defaultData.mt[i]}"></td>
-            <td><input type="number" class="val-mc" value="${defaultData.mc[i]}"></td>
-            <td><input type="number" class="val-lt" value="${defaultData.lt[i]}"></td>
-        </tr>`;
-    });
-    document.querySelectorAll('input').forEach(el => el.addEventListener('input', () => {
-        document.getElementById('loadValDisplay').innerText = document.getElementById('loadScale').value + "%";
-    }));
-    document.getElementById('btnDOL').onclick = () => runSimulation('DOL');
-    document.getElementById('btnSS').onclick = () => runSimulation('SS');
-}
-
-// Simple linear interpolation to get smooth values between points
-function getVal(s, targetArr) {
-    if (s <= 0) return targetArr[0];
-    if (s >= 100) return targetArr[targetArr.length - 1];
-    let i = speedPoints.findIndex(v => v >= s);
-    let x0 = speedPoints[i - 1], x1 = speedPoints[i];
-    let y0 = targetArr[i - 1], y1 = targetArr[i];
-    return y0 + (s - x0) * (y1 - y0) / (x1 - x0);
-}
-
-function runSimulation(mode) {
-    const lScale = parseFloat(document.getElementById('loadScale').value) / 100;
-    const mFLC = parseFloat(document.getElementById('mFLC').value);
-    const mRPM = parseFloat(document.getElementById('mRPM').value);
-    const totalJ = parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value);
-    const fltNm = (parseFloat(document.getElementById('mKW').value) * 9550) / mRPM;
-
-    const tableMt = Array.from(document.querySelectorAll('.val-mt')).map(i => parseFloat(i.value));
-    const tableMc = Array.from(document.querySelectorAll('.val-mc')).map(i => parseFloat(i.value));
-    const tableLt = Array.from(document.querySelectorAll('.val-lt')).map(i => parseFloat(i.value) * lScale);
-
-    let time = 0, speed = 0, minNet = 999, peakA = 0, status = "SUCCESS";
-    const dt = 0.01; // Finer resolution for smoothness
-    const plotData = { s: [], mt: [], mc: [], lt: [] };
-
-    while (speed < 99 && time < 45) {
-        let rawMt = getVal(speed, tableMt);
-        let rawMc = getVal(speed, tableMc);
-        let curLt = getVal(speed, tableLt);
-
-        let activeMt, activeMc;
-        if (mode === 'SS') {
-            let iInit = parseFloat(document.getElementById('ssInitI').value);
-            let iLimit = parseFloat(document.getElementById('ssLimitI').value);
-            let rTime = parseFloat(document.getElementById('ssRamp').value);
-            let curLimit = (time < rTime) ? iInit + (iLimit - iInit) * (time / rTime) : iLimit;
+        <article class="results">
             
-            let vRatio = Math.min(1, curLimit / rawMc);
-            activeMt = rawMt * vRatio * vRatio;
-            activeMc = rawMc * vRatio;
-        } else {
-            activeMt = rawMt;
-            activeMc = rawMc;
-        }
+            <div class="scenario-section">
+                <div class="section-header">
+                    <button id="btnDOL" class="btn-main">RUN DOL SIMULATION</button>
+                    <div class="stats-row">
+                        <div class="mini-stat"><span>Time:</span> <b id="dolTime">--</b></div>
+                        <div class="mini-stat"><span>TCU:</span> <b id="dolTherm">--</b></div>
+                        <div class="mini-stat"><span>Min Net T:</span> <b id="dolNet">--</b></div>
+                        <div class="mini-stat"><span>Min Start I:</span> <b id="dolMinI">--</b></div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="chartDOL"></canvas></div>
+            </div>
 
-        let net = activeMt - curLt;
-        if (net < minNet) minNet = net;
-        if ((activeMc * mFLC / 100) > peakA) peakA = (activeMc * mFLC / 100);
-        if (net <= 0) { status = "STALL"; break; }
+            <hr class="divider">
 
-        speed += ((net * fltNm / 100) / totalJ) * 9.55 * dt / (mRPM / 100);
-        time += dt;
+            <div class="scenario-section">
+                <div class="section-header">
+                    <div class="ss-controls">
+                        <button id="btnSS" class="btn-main ss-btn">RUN SOFT START</button>
+                        <div class="f-group"><label>Init I%</label><input type="number" id="ssInitI" value="300"></div>
+                        <div class="f-group"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
+                        <div class="f-group"><label>Ramp(s)</label><input type="number" id="ssRamp" value="5"></div>
+                    </div>
+                    <div class="stats-row">
+                        <div class="mini-stat"><span>Time:</span> <b id="ssTime">--</b></div>
+                        <div class="mini-stat"><span>TCU:</span> <b id="ssTherm">--</b></div>
+                        <div class="mini-stat"><span>Min Net T:</span> <b id="ssNet">--</b></div>
+                        <div class="mini-stat"><span>Min Start I:</span> <b id="ssMinI">--</b></div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="chartSS"></canvas></div>
+            </div>
+        </article>
+    </main>
 
-        if (Math.round(time/dt) % 10 === 0) {
-            plotData.s.push(speed.toFixed(1));
-            plotData.mt.push(activeMt);
-            plotData.mc.push(activeMc);
-            plotData.lt.push(curLt);
-        }
-    }
-
-    updateUI(time, status, minNet, peakA);
-    renderChart(plotData);
-}
-
-function updateUI(t, status, minNet, peakA) {
-    document.getElementById('statTime').innerText = status === "SUCCESS" ? t.toFixed(2) + "s" : "--";
-    document.getElementById('statStatus').innerText = status;
-    document.getElementById('statNet').innerText = minNet.toFixed(1) + "%";
-    document.getElementById('statPeak').innerText = peakA.toFixed(1);
-}
-
-function renderChart(data) {
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    if (mainChart) mainChart.destroy();
-    mainChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.s,
-            datasets: [
-                { label: 'Torque %', data: data.mt, borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.4 },
-                { label: 'Load %', data: data.lt, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0, tension: 0.4 },
-                { label: 'Current %', data: data.mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0, tension: 0.4 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            scales: {
-                x: { title: { display: true, text: 'Speed %' } },
-                y: { min: 0, title: { display: true, text: 'Torque %' } },
-                y1: { min: 0, position: 'right', grid: { drawOnChartArea: false } }
-            }
-        }
-    });
-}
-window.onload = init;
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

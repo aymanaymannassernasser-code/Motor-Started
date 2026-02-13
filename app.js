@@ -1,8 +1,3 @@
-/**
- * Motor Started v1.9
- * Logic: Dual-Simulation engine with independent section control.
- */
-
 const speedPoints = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 const defaultData = {
     mt: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
@@ -48,7 +43,6 @@ function getVal(s, targetArr) {
 function runSimulation(mode) {
     const lScale = parseFloat(document.getElementById('loadScale').value) / 100;
     const mRPM = parseFloat(document.getElementById('mRPM').value);
-    const mFLC = parseFloat(document.getElementById('mFLC').value);
     const totalJ = parseFloat(document.getElementById('mJ').value) + parseFloat(document.getElementById('lJ').value);
     const fltNm = (parseFloat(document.getElementById('mKW').value) * 9550) / mRPM;
 
@@ -60,7 +54,7 @@ function runSimulation(mode) {
     const dt = 0.01;
     const plotData = { s: [], mt: [], mc: [], lt: [] };
 
-    while (speed < 99 && time < 45) {
+    while (speed < 99.5 && time < 60) {
         let rawMt = getVal(speed, tableMt);
         let rawMc = getVal(speed, tableMc);
         let curLt = getVal(speed, tableLt);
@@ -84,7 +78,7 @@ function runSimulation(mode) {
         if (activeMc < minI) minI = activeMc;
         thermal += Math.pow(activeMc / 100, 2) * dt;
 
-        if (net <= 0) break;
+        if (net <= 0.01) break;
 
         speed += ((net * fltNm / 100) / totalJ) * 9.55 * dt / (mRPM / 100);
         time += dt;
@@ -110,9 +104,7 @@ function updateUI(mode, t, therm, minT, minI) {
 }
 
 function renderChart(mode, data) {
-    const canvasId = mode === 'DOL' ? 'chartDOL' : 'chartSS';
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    
+    const ctx = document.getElementById(mode === 'DOL' ? 'chartDOL' : 'chartSS').getContext('2d');
     if (mode === 'DOL' && chartDOL) chartDOL.destroy();
     if (mode === 'SS' && chartSS) chartSS.destroy();
 
@@ -129,11 +121,11 @@ function renderChart(mode, data) {
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: {
-                x: { title: { display: true, text: 'Speed %', font: { size: 10 } } },
+                x: { title: { display: true, text: 'Speed %' } },
                 y: { min: 0, title: { display: true, text: 'Torque %' } },
                 y1: { min: 0, position: 'right', grid: { drawOnChartArea: false } }
             },
-            plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } }
+            plugins: { legend: { position: 'top', labels: { boxWidth: 20 } } }
         }
     });
 
