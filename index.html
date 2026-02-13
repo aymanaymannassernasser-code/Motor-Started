@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.1 | Technical Sync</title>
+    <title>Motor Started v2.2 | Professional Engineering Suite</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.1</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.2</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -17,24 +17,23 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>System & Motor Data</h3>
+                <h3>1. Nameplate & Inertia</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
-                    <div class="f-group"><label>Full Load Cur (A)</label><input type="number" id="mFLC" value="48"></div>
+                    <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="48"></div>
                     <div class="f-group"><label>Rated RPM</label><input type="number" id="mRPM" value="1485"></div>
                     <div class="f-group"><label>Motor J (kgm²)</label><input type="number" id="mJ" value="12.8"></div>
                     <div class="f-group"><label>Load J (kgm²)</label><input type="number" id="lJ" value="2.9"></div>
                 </div>
                 <div class="f-group mt-10">
-                    <label>Load Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
+                    <label>Load Torque Scaling: <span id="loadValDisplay" class="accent">100%</span></label>
                     <input type="range" id="loadScale" min="50" max="150" value="100">
                 </div>
-                <div class="readout">Rated Torque (Nm): <span id="resFLT" class="accent">--</span></div>
             </section>
 
             <section class="card scroll-card">
-                <h3>Data Point Grid (0-100% Speed)</h3>
+                <h3>2. Motor Characteristic Grid</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
@@ -47,30 +46,30 @@
         <article class="results">
             <div class="scenario-section">
                 <div class="section-header">
-                    <button id="btnDOL" class="btn-main">RUN DOL SIMULATION</button>
+                    <button id="btnDOL" class="btn-main">Simulate Direct-On-Line</button>
                     <div class="stats-row">
-                        <div class="mini-stat"><span>Time:</span> <b id="dolTime">--</b></div>
-                        <div class="mini-stat"><span>TCU:</span> <b id="dolTherm">--</b></div>
-                        <div class="mini-stat"><span>Min Net T:</span> <b id="dolNet">--</b></div>
-                        <div class="mini-stat"><span>Max Start I:</span> <b id="dolMaxI">--</b></div>
+                        <div class="mini-stat">Start Time: <b id="dolTime">--</b></div>
+                        <div class="mini-stat">TCU: <b id="dolTherm">--</b></div>
+                        <div class="mini-stat">Min Accel T: <b id="dolNet">--</b></div>
+                        <div class="mini-stat">Peak I: <b id="dolMaxI">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartDOL"></canvas></div>
             </div>
 
-            <div class="scenario-section">
+            <div class="scenario-section ss-highlight">
                 <div class="section-header">
-                    <div class="ss-controls">
-                        <button id="btnSS" class="btn-main ss-btn">RUN SOFT START</button>
-                        <div class="f-group"><label>Init I%</label><input type="number" id="ssInitI" value="300"></div>
-                        <div class="f-group"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
-                        <div class="f-group"><label>Ramp(s)</label><input type="number" id="ssRamp" value="5"></div>
+                    <div class="ss-input-group">
+                        <button id="btnSS" class="btn-main ss-btn">Simulate Soft Start</button>
+                        <div class="f-group inline"><label>Init I%</label><input type="number" id="ssInitI" value="300"></div>
+                        <div class="f-group inline"><label>Limit I%</label><input type="number" id="ssLimitI" value="450"></div>
+                        <div class="f-group inline"><label>Ramp(s)</label><input type="number" id="ssRamp" value="5"></div>
                     </div>
                     <div class="stats-row">
-                        <div class="mini-stat"><span>Time:</span> <b id="ssTime">--</b></div>
-                        <div class="mini-stat"><span>TCU:</span> <b id="ssTherm">--</b></div>
-                        <div class="mini-stat"><span>Min Net T:</span> <b id="ssNet">--</b></div>
-                        <div class="mini-stat"><span>Max Start I:</span> <b id="ssMaxI">--</b></div>
+                        <div class="mini-stat">Start Time: <b id="ssTime">--</b></div>
+                        <div class="mini-stat">TCU: <b id="ssTherm">--</b></div>
+                        <div class="mini-stat">Min Accel T: <b id="ssNet">--</b></div>
+                        <div class="mini-stat">Peak I: <b id="ssMaxI">--</b></div>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="chartSS"></canvas></div>
