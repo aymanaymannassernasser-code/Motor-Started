@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motor Started v2.6 | Professional Analysis Suite</title>
+    <title>Motor Started v2.7 | Heavy Duty Engineering</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.6</small></h1>
+            <h1>Motor Started <small style="font-size: 0.6em; opacity: 0.7;">v2.7</small></h1>
             <div class="signature">Engineering Lead: Ayman Elkhodary</div>
         </div>
     </header>
@@ -17,7 +17,7 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>1. Nameplate & Standards</h3>
+                <h3>1. Configuration</h3>
                 <div class="grid-2">
                     <div class="f-group"><label>Voltage (V)</label><input type="number" id="mVolts" value="6600"></div>
                     <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450"></div>
@@ -28,16 +28,16 @@
                 </div>
                 
                 <div class="f-group mt-15">
-                    <label>Motor Characteristic Preset</label>
+                    <label>Motor Characteristic</label>
                     <select id="motorType" class="input-select">
                         <option value="custom">Custom (Follow Data Grid)</option>
-                        <option value="designB">NEMA Design B (Standard)</option>
-                        <option value="designC">NEMA Design C (High Torque)</option>
+                        <option value="designB">Standard (Design B)</option>
+                        <option value="designC">High Torque (Design C)</option>
                     </select>
                 </div>
 
                 <div class="f-group mt-10">
-                    <label>Load Modeling Method</label>
+                    <label>Load Characteristic</label>
                     <select id="loadType" class="input-select">
                         <option value="grid">Follow Data Grid (Custom)</option>
                         <option value="centrifugal">Centrifugal (Fan/Pump)</option>
@@ -48,7 +48,7 @@
             </section>
 
             <section class="card scroll-card">
-                <h3>2. Performance Grid (Custom Mode Data)</h3>
+                <h3>2. Performance Grid</h3>
                 <table class="data-table">
                     <thead>
                         <tr><th>Speed%</th><th>Mot T%</th><th>Cur %</th><th>Load T%</th></tr>
@@ -91,7 +91,6 @@
             </div>
         </article>
     </main>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="app.js"></script>
 </body>

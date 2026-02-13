@@ -1,8 +1,3 @@
-/**
- * Motor Started v2.6
- * Feature: Continuous Simulation for Stall Analysis & NEMA Motor Presets
- */
-
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 const DEFAULT_GRID = {
     mt: [150, 145, 140, 135, 130, 140, 160, 180, 210, 220, 230, 240, 250, 240, 220, 180, 120, 50, 0],
@@ -43,14 +38,8 @@ function interpolate(x, xArr, yArr) {
 
 function getMotorTorque(speed, type, tableMt) {
     if (type === 'custom') return interpolate(speed, S_POINTS, tableMt);
-    // Standard Presets (Approximations of NEMA Curves)
-    if (type === 'designB') {
-        if (speed < 80) return 150 - (speed * 0.2);
-        return 130 + (speed - 80) * 5 - Math.pow(speed-80, 2) * 0.2; 
-    }
-    if (type === 'designC') {
-        return 250 - (speed * 0.5); // High starting, lower breakdown
-    }
+    if (type === 'designB') return (speed < 80) ? 150 - (speed * 0.25) : 130 + (speed - 80) * 8 - Math.pow(speed-80, 2) * 0.35;
+    if (type === 'designC') return (speed < 70) ? 250 - (speed * 0.8) : 194 + (speed-70)*3 - Math.pow(speed-70, 2)*0.15;
     return interpolate(speed, S_POINTS, tableMt);
 }
 
@@ -74,15 +63,15 @@ function runSim(mode) {
     const tableLt = Array.from(document.querySelectorAll('.val-lt')).map(el => parseFloat(el.value));
 
     let time = 0, speed = 0, thermal = 0, minNet = 999, maxA = 0;
-    const dt = 0.005;
+    const dt = 0.01; // Optimized step for balance
     let isStalled = false;
+    let finalTime = 0;
 
     const initI = parseFloat(document.getElementById('ssInitI').value);
     const limI = parseFloat(document.getElementById('ssLimitI').value);
     const ramp = parseFloat(document.getElementById('ssRamp').value);
 
-    // Continuous simulation logic: loop runs for 40s regardless of stall
-    while (time < 40) {
+    while (time < 60) {
         let rawMt = getMotorTorque(speed, mType, tableMt);
         let rawMc = interpolate(speed, S_POINTS, tableMc);
         let curLt = getLoadTorque(speed, lType, tableLt);
@@ -101,27 +90,24 @@ function runSim(mode) {
         let netT = activeMt - curLt;
         if (netT < minNet) minNet = netT;
         if ((activeMc * mFLC / 100) > maxA) maxA = (activeMc * mFLC / 100);
-        
-        // Only integrate thermal and speed if not finished
-        if (speed < 99.8) {
+
+        if (speed < 98.0) { // Standard engineering cutoff for "Started"
             thermal += Math.pow(activeMc / 100, 2) * dt;
-            if (netT <= 0) {
+            if (netT <= 0.5) { // Threshold for stall
                 isStalled = true;
             } else {
-                let accel = (netT * fltNm / 100) / totalJ;
-                speed += (accel * 9.549) * dt * (100 / mRPM);
+                // Acceleration = Torque / Inertia
+                let accelRadS = (netT * fltNm / 100) / totalJ;
+                let deltaRPM = (accelRadS * 9.549) * dt;
+                speed += (deltaRPM / mRPM) * 100;
             }
-            if (!isStalled) var finalTime = time;
-        } else {
-            // Reached speed, stop counting "start time"
-            if (!finalTime) finalTime = time;
+            finalTime = time;
         }
         time += dt;
     }
 
     updateUI(mode, finalTime, thermal, minNet, maxA, isStalled);
     
-    // Generate Chart Points based on Speed Axis
     let labels = Array.from({length: 101}, (_, i) => i);
     let pMt = [], pMc = [], pLt = [];
     labels.forEach(s => {
@@ -143,7 +129,7 @@ function runSim(mode) {
 function updateUI(mode, t, tcu, net, peak, stalled) {
     const id = mode.toLowerCase();
     const timeEl = document.getElementById(`${id}Time`);
-    if (stalled) {
+    if (stalled || t >= 59) {
         timeEl.innerText = "STALL";
         timeEl.style.color = "#f43f5e";
     } else {
@@ -151,7 +137,7 @@ function updateUI(mode, t, tcu, net, peak, stalled) {
         timeEl.style.color = "";
     }
     document.getElementById(`${id}Therm`).innerText = tcu.toFixed(1) + "%";
-    document.getElementById(`${id}Net`).innerText = net.toFixed(1) + "%";
+    document.getElementById(`${id}Net`).innerText = (net < 0 ? 0 : net).toFixed(1) + "%";
     document.getElementById(`${id}MaxI`).innerText = Math.round(peak) + "A";
 }
 
@@ -164,7 +150,7 @@ function renderChart(mode, labels, mt, mc, lt) {
             labels,
             datasets: [
                 { label: 'Motor Torque %', data: mt, borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.3 },
-                { label: 'Load Torque %', data: lt, borderColor: '#f43f5e', borderDash: [5, 5], pointRadius: 0, tension: 0.2 },
+                { label: 'Load Torque %', data: lt, borderColor: '#f43f5e', borderDash: [5, 5], pointRadius: 0, tension: 0.1 },
                 { label: 'Current %', data: mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0, tension: 0.2 }
             ]
         },
