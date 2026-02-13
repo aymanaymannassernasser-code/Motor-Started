@@ -17,7 +17,11 @@
     <main class="dashboard">
         <aside class="sidebar">
             <section class="card">
-                <h3>Project:- <input type="text" id="projName" value="Industrial Pump System"></h3>
+                <h3>Project Details</h3>
+                <div class="input-row">
+                    <label>Project:-</label>
+                    <input type="text" id="projName" value="Industrial Digital Twin">
+                </div>
             </section>
 
             <section class="card">
@@ -45,10 +49,10 @@
             <section class="card">
                 <h3>DOL Curve Points (% FLT / % FLC)</h3>
                 <table class="data-table">
-                    <tr><th>Point</th><th>Speed%</th><th>Torque%</th><th>Current%</th></tr>
-                    <tr><td>LRT</td><td>0</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
-                    <tr><td>Pull-Up</td><td>25</td><td><input type="number" id="pPUT" value="130"></td><td><input type="number" id="pPUC" value="550"></td></tr>
-                    <tr><td>Breakdown</td><td>85</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
+                    <tr><th>Point</th><th>Torque%</th><th>Current%</th></tr>
+                    <tr><td>Locked (LRT)</td><td><input type="number" id="pLRT" value="150"></td><td><input type="number" id="pLRC" value="650"></td></tr>
+                    <tr><td>Pull-Up (Sag)</td><td><input type="number" id="pPUT" value="120"></td><td><input type="number" id="pPUC" value="580"></td></tr>
+                    <tr><td>Breakdown (BDT)</td><td><input type="number" id="pBDT" value="250"></td><td><input type="number" id="pBDC" value="350"></td></tr>
                 </table>
                 <div class="f-group mt-10">
                     <label>Load Torque Profile</label>
@@ -86,8 +90,6 @@
                 <div class="chart-wrapper"><canvas id="chartDOL"></canvas></div>
             </div>
 
-            <hr class="divider">
-
             <div class="scenario-section">
                 <h2 class="section-title">Scenario B: Soft Starter</h2>
                 <div class="stats-grid" id="statsSS">
@@ -98,8 +100,13 @@
                 </div>
                 <div class="chart-wrapper"><canvas id="chartSS"></canvas></div>
             </div>
+
+            <footer class="tech-sources">
+                <p><strong>Physics Engine:</strong> Modified Kloss Analytical Model (Torque) & Admittance Circle Diagram (Current). 
+                <em>Reference: IEEE Std 399 (Brown Book) and Gafford Engineering Methods.</em></p>
+            </footer>
             
-            <div id="stallAlert" class="alert hidden">⚠️ STALL DETECTED: INSUFFICIENT MOTOR TORQUE</div>
+            <div id="stallAlert" class="alert hidden">⚠️ STALL DETECTED: LOAD EXCEEDS MOTOR TORQUE</div>
         </article>
     </main>
 
