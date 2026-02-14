@@ -1,22 +1,53 @@
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
+
+const PRESETS = {
+    motor: {
+        oem: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
+        designC: [250, 240, 220, 205, 195, 190, 192, 200, 215, 230, 245, 255, 260, 250, 230, 185, 120, 60, 0],
+        highSlip: [160, 162, 165, 170, 175, 185, 200, 215, 230, 235, 240, 245, 235, 215, 190, 150, 100, 50, 0]
+    },
+    current: {
+        oem: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
+        designC: [550, 545, 538, 530, 520, 510, 500, 485, 465, 455, 435, 405, 370, 320, 270, 210, 140, 75, 10],
+        highSlip: [620, 610, 600, 585, 570, 550, 525, 500, 470, 450, 420, 385, 340, 285, 220, 160, 110, 65, 10]
+    },
+    load: {
+        oem: [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42],
+        centrifugal: [5, 6, 8, 12, 17, 23, 30, 38, 48, 51, 54, 58, 62, 67, 73, 80, 88, 95, 100],
+        constant: [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40]
+    }
+};
+
 let charts = { DOL: null, SS: null };
 
 function init() {
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = "";
-    const defT = [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0];
-    const defC = [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10];
-    const defL = [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42];
-
     S_POINTS.forEach((s, i) => {
         tbody.innerHTML += `<tr><td><b>${s}%</b></td>
-            <td><input type="number" class="val-mt" value="${defT[i]}"></td>
-            <td><input type="number" class="val-mc" value="${defC[i]}"></td>
-            <td><input type="number" class="val-lt" value="${defL[i]}"></td></tr>`;
+            <td><input type="number" class="val-mt" value="${PRESETS.motor.oem[i]}"></td>
+            <td><input type="number" class="val-mc" value="${PRESETS.current.oem[i]}"></td>
+            <td><input type="number" class="val-lt" value="${PRESETS.load.oem[i]}"></td></tr>`;
     });
+
+    document.getElementById('motorPreset').onchange = (e) => applyPreset('motor', e.target.value);
+    document.getElementById('loadPreset').onchange = (e) => applyPreset('load', e.target.value);
     document.getElementById('btnDOL').onclick = () => runSim('DOL');
     document.getElementById('btnSS').onclick = () => runSim('SS');
+    
     updateHeader();
+}
+
+function applyPreset(type, key) {
+    if (key === 'current') return;
+    const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt');
+    if (type === 'motor') {
+        PRESETS.motor[key].forEach((v, i) => mts[i].value = v);
+        PRESETS.current[key].forEach((v, i) => mcs[i].value = v);
+    } else {
+        PRESETS.load[key].forEach((v, i) => lts[i].value = v);
+    }
+    runSim('DOL');
 }
 
 function updateHeader() {
@@ -34,13 +65,14 @@ function interpolate(x, xArr, yArr) {
 }
 
 function runSim(mode) {
-    const mRPM = parseFloat(document.getElementById('mRPM').value), totalJ = parseFloat(document.getElementById('totalJ').value);
+    const mFLC = parseFloat(document.getElementById('mFLC').value), mRPM = parseFloat(document.getElementById('mRPM').value);
+    const totalJ = parseFloat(document.getElementById('totalJ').value);
     const fltNm = parseFloat(document.getElementById('resFLT').innerText), hStall = parseFloat(document.getElementById('hStall').value);
     const tableMt = [...document.querySelectorAll('.val-mt')].map(e => e.value);
     const tableMc = [...document.querySelectorAll('.val-mc')].map(e => e.value);
     const tableLt = [...document.querySelectorAll('.val-lt')].map(e => e.value);
 
-    // Precise Min Start I Search
+    // Critical Current Search
     let minStartI = 100;
     for (let i = 100; i < 600; i += 0.5) {
         let stall = false;
@@ -51,59 +83,24 @@ function runSim(mode) {
         if (!stall) { minStartI = i; break; }
     }
 
-    let time = 0, speedPerc = 0, thermal = 0, minNet = 999, isStalled = false;
-    const dt = 0.01, targetRadS = (mRPM * 2 * Math.PI) / 60;
+    let time = 0, speedPerc = 0, thermal = 0, minNet = 999, isStalled = false, stallSpd = null;
+    const dt = 0.01, targetRadS = (mRPM * 2 * Math.PI) / 60, ssLim = parseFloat(document.getElementById('ssLimitI').value);
     let speedRadS = 0;
 
-    const ssInit = parseFloat(document.getElementById('ssInitI').value);
-    const ssLim = parseFloat(document.getElementById('ssLimitI').value);
-    const ssRamp = parseFloat(document.getElementById('ssRamp').value);
-
-    // Physics Results Array for the Speed-Domain Chart
-    let speedResults = Array.from({length: 101}, (_, i) => ({ s: i, mt: 0, mc: 0, lt: 0 }));
-
-    // Simulation Loop
     while (time < 60) {
-        let rMt = interpolate(speedPerc, S_POINTS, tableMt), rMc = interpolate(speedPerc, S_POINTS, tableMc), rLt = interpolate(speedPerc, S_POINTS, tableLt);
+        let rMt = interpolate(speedPerc, S_POINTS, tableMt), rMc = interpolate(speedPerc, S_POINTS, tableMc), cLt = interpolate(speedPerc, S_POINTS, tableLt);
         let aMt = rMt, aMc = rMc;
-
-        if (mode === 'SS') {
-            let rampI = ssInit + (ssLim - ssInit) * (time / ssRamp);
-            let activeLimit = Math.min(rampI, ssLim);
-            let vr = Math.min(1, activeLimit / rMc);
-            aMt *= (vr * vr); aMc *= vr;
-        }
-
-        let net = aMt - rLt;
+        if (mode === 'SS') { let vr = Math.min(1, ssLim / rMc); aMt *= (vr * vr); aMc *= vr; }
+        let net = aMt - cLt;
         if (speedPerc < 95 && net < minNet) minNet = net;
-
-        // Capture data point for the specific speed integer
-        let sIdx = Math.round(speedPerc);
-        if (sIdx <= 100 && speedResults[sIdx].mt === 0) {
-            speedResults[sIdx] = { s: sIdx, mt: aMt, mc: aMc, lt: rLt };
-        }
-
-        if (speedPerc < 99.5) {
-            if (net <= 0.005 && time > 0.2) { isStalled = true; break; }
+        if (speedPerc < 98.5) {
+            if (net <= 0.005 && time > 0.2) { isStalled = true; stallSpd = speedPerc; break; }
             speedRadS += ((net / 100) * fltNm / totalJ) * dt;
             speedPerc = (speedRadS / targetRadS) * 100;
             thermal += (Math.pow(aMc / 600, 2) / hStall) * 100 * dt;
-            if (thermal >= 100) break;
-        } else { break; }
-        time += dt;
-    }
-
-    // Fill in gaps for the chart if simulation stalled
-    speedResults.forEach((res, i) => {
-        if (res.mt === 0 && i > 0) {
-            let rMt = interpolate(i, S_POINTS, tableMt), rMc = interpolate(i, S_POINTS, tableMc), rLt = interpolate(i, S_POINTS, tableLt);
-            if (mode === 'SS') { 
-                let vr = Math.min(1, ssLim / rMc);
-                res.mt = rMt * vr * vr; res.mc = rMc * vr; 
-            } else { res.mt = rMt; res.mc = rMc; }
-            res.lt = rLt;
         }
-    });
+        time += dt; if (speedPerc >= 99) break;
+    }
 
     const id = mode.toLowerCase();
     document.getElementById(`${id}Time`).innerText = isStalled ? "STALL" : time.toFixed(2) + "s";
@@ -111,30 +108,31 @@ function runSim(mode) {
     document.getElementById(`${id}Net`).innerText = minNet.toFixed(1) + "%";
     if(mode === 'SS') document.getElementById('ssMinI').innerText = minStartI.toFixed(1) + "%";
 
-    renderSpeedChart(mode, speedResults);
+    let lbls = Array.from({length: 101}, (_, i) => i), pMt = [], pMc = [], pLt = [], gMt = [], gMc = [];
+    lbls.forEach(s => {
+        let rm = interpolate(s, S_POINTS, tableMt), rc = interpolate(s, S_POINTS, tableMc), rl = interpolate(s, S_POINTS, tableLt);
+        pLt.push(rl); gMt.push(rm); gMc.push(rc);
+        if (mode === 'SS') { let vr = Math.min(1, ssLim / rc); pMt.push(rm * vr * vr); pMc.push(rc * vr); }
+        else { pMt.push(rm); pMc.push(rc); }
+    });
+    renderChart(mode, lbls, pMt, pMc, pLt, gMt, gMc, stallSpd);
 }
 
-function renderSpeedChart(m, data) {
+function renderChart(m, labels, mt, mc, lt, gmt, gmc, stallSpd) {
     const ctx = document.getElementById(m === 'DOL' ? 'chartDOL' : 'chartSS');
     if (charts[m]) charts[m].destroy();
-    charts[m] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.map(d => d.s),
-            datasets: [
-                { label: 'Torque %', data: data.map(d => d.mt), borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.1 },
-                { label: 'Current %', data: data.map(d => d.mc), borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0 },
-                { label: 'Load %', data: data.map(d => d.lt), borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 }
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            scales: {
-                x: { title: { display: true, text: 'Speed %' } },
-                y: { min: 0, title: { display: true, text: 'Torque %' } },
-                y1: { position: 'right', min: 0, title: { display: true, text: 'Current %' }, grid: { drawOnChartArea: false } }
-            }
-        }
-    });
+    let datasets = [
+        { label: 'Torque %', data: mt, borderColor: '#22d3ee', borderWidth: 3, pointRadius: 0, tension: 0.2 },
+        { label: 'Load %', data: lt, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 },
+        { label: 'Current %', data: mc, borderColor: '#fbbf24', borderWidth: 2, yAxisID: 'y1', pointRadius: 0 }
+    ];
+    if (m === 'SS') {
+        datasets.push({ label: 'DOL Torque', data: gmt, borderColor: 'rgba(34, 211, 238, 0.15)', borderWidth: 1, pointRadius: 0 });
+        datasets.push({ label: 'DOL Current', data: gmc, borderColor: 'rgba(251, 191, 36, 0.15)', borderWidth: 1, yAxisID: 'y1', pointRadius: 0 });
+    }
+    if (stallSpd !== null) {
+        datasets.push({ label: 'STALL', data: [{x: Math.round(stallSpd), y: mt[Math.round(stallSpd)]}], pointStyle: 'crossRot', pointRadius: 12, pointBorderColor: '#ff0000', pointBorderWidth: 3, showLine: false });
+    }
+    charts[m] = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, scales: { x:{title:{display:true,text:'Speed %'}}, y:{min:0, title:{display:true,text:'Torque %'}}, y1:{position:'right', min:0, grid:{drawOnChartArea:false}, title:{display:true,text:'Current %'}} } } });
 }
 window.onload = init;
