@@ -1,8 +1,20 @@
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 const PRESETS = {
-    motor: { oem: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0], designC: [250, 240, 220, 205, 195, 190, 192, 200, 215, 230, 245, 255, 260, 250, 230, 185, 120, 60, 0], highSlip: [160, 162, 165, 170, 175, 185, 200, 215, 230, 235, 240, 245, 235, 215, 190, 150, 100, 50, 0] },
-    current: { oem: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10], designC: [550, 545, 538, 530, 520, 510, 500, 485, 465, 455, 435, 405, 370, 320, 270, 210, 140, 75, 10], highSlip: [620, 610, 600, 585, 570, 550, 525, 500, 470, 450, 420, 385, 340, 285, 220, 160, 110, 65, 10] },
-    load: { oem: [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42], centrifugal: [5, 6, 8, 12, 17, 23, 30, 38, 48, 51, 54, 58, 62, 67, 73, 80, 88, 95, 100], constant: [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40] }
+    motor: { 
+        oem: [80, 80, 80, 80, 80, 80, 81, 89, 108, 114, 121, 131, 141, 152, 166, 178, 173, 125, 0],
+        designC: [250, 240, 220, 205, 195, 190, 192, 200, 215, 230, 245, 255, 260, 250, 230, 185, 120, 60, 0],
+        highSlip: [160, 162, 165, 170, 175, 185, 200, 215, 230, 235, 240, 245, 235, 215, 190, 150, 100, 50, 0]
+    },
+    current: { 
+        oem: [590, 585, 580, 577, 574, 570, 565, 562, 548, 540, 525, 505, 480, 450, 415, 360, 255, 150, 10],
+        designC: [550, 545, 538, 530, 520, 510, 500, 485, 465, 455, 435, 405, 370, 320, 270, 210, 140, 75, 10],
+        highSlip: [620, 610, 600, 585, 570, 550, 525, 500, 470, 450, 420, 385, 340, 285, 220, 160, 110, 65, 10]
+    },
+    load: { 
+        oem: [12, 7, 6, 7, 9, 12, 16, 21, 27, 28, 30, 31, 33, 34, 36, 37, 39, 40, 42],
+        centrifugal: [5, 6, 8, 12, 17, 23, 30, 38, 48, 51, 54, 58, 62, 67, 73, 80, 88, 95, 100],
+        constant: [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40]
+    }
 };
 
 let charts = { DOL: null, SS: null };
@@ -50,7 +62,7 @@ function runSim(mode) {
     const fltNm = parseFloat(document.getElementById('resFLT').innerText), hStall = parseFloat(document.getElementById('hStall').value);
     const tableMt = [...document.querySelectorAll('.val-mt')].map(e => e.value), tableMc = [...document.querySelectorAll('.val-mc')].map(e => e.value), tableLt = [...document.querySelectorAll('.val-lt')].map(e => e.value);
 
-    // Precise Survival Sweep for Min Start I
+    // Precise Min Start I Search
     let minStartI = 100;
     for (let testI = 100; testI < 600; testI += 0.5) {
         let ok = true;
@@ -67,7 +79,6 @@ function runSim(mode) {
 
     const sInit = parseFloat(document.getElementById('ssInitI').value), sLim = parseFloat(document.getElementById('ssLimitI').value), sRamp = parseFloat(document.getElementById('ssRamp').value);
 
-    // Simulation Loop (Max 60s)
     while (time < 60) {
         let rMt = interpolate(speedPerc, S_POINTS, tableMt), rMc = interpolate(speedPerc, S_POINTS, tableMc), rLt = interpolate(speedPerc, S_POINTS, tableLt);
         let aMt = rMt, aMc = rMc;
@@ -85,7 +96,7 @@ function runSim(mode) {
         plot.t.push(time.toFixed(1)); plot.s.push(speedPerc.toFixed(1)); plot.m.push(aMt.toFixed(1)); plot.l.push(rLt.toFixed(1)); plot.c.push(aMc.toFixed(1));
 
         if (speedPerc < 99.8) {
-            if (net <= 0 && time > 0.2) { isStalled = true; speedRadS += 0; }
+            if (net <= 0 && time > 0.2) { isStalled = true; } 
             else { speedRadS += ((net / 100) * fltNm / totalJ) * dt; }
             speedPerc = (speedRadS / targetRadS) * 100;
             thermal += (Math.pow(aMc / 600, 2) / hStall) * 100 * dt;
@@ -100,10 +111,10 @@ function runSim(mode) {
     document.getElementById(`${id}Net`).innerText = minNet.toFixed(1) + "%";
     if (mode === 'SS') document.getElementById('ssMinI').innerText = minStartI.toFixed(1) + "%";
 
-    renderChart(mode, plot, isStalled);
+    renderChart(mode, plot);
 }
 
-function renderChart(m, d, stalled) {
+function renderChart(m, d) {
     const ctx = document.getElementById(m === 'DOL' ? 'chartDOL' : 'chartSS');
     if (charts[m]) charts[m].destroy();
     charts[m] = new Chart(ctx, {
@@ -117,11 +128,7 @@ function renderChart(m, d, stalled) {
                 { label: 'Load T%', data: d.l, borderColor: '#f43f5e', borderDash: [5,5], pointRadius: 0 }
             ]
         },
-        options: { 
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            scales: { x:{title:{display:true,text:'Time (s)'}}, y:{min:0,max:300,title:{display:true,text:'Torque/Speed%'}}, y1:{position:'right',min:0,title:{display:true,text:'Current%'}} }
-        }
+        options: { responsive: true, maintainAspectRatio: false, scales: { x:{title:{display:true,text:'Time (s)'}}, y:{min:0,max:300}, y1:{position:'right',min:0} } }
     });
 }
 window.onload = init;
