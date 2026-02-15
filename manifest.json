@@ -1,11 +1,16 @@
 {
-  "name": "Motor Started",
+  "name": "MotorStart Pro",
   "short_name": "MotorStart",
-  "start_url": ".",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#22d3ee",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
   "icons": [
-    { "src": "https://cdn-icons-png.flaticon.com/512/3067/3067451.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3665/3665921.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
