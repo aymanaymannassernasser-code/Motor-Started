@@ -3,116 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Offline Engineering Tool for Motor Starting Analysis">
-    <meta name="theme-color" content="#0f172a">
-    <title>MotorStart Pro v3.1</title>
+    <meta name="description" content="Professional motor starting simulator">
+    <meta name="theme-color" content="#0a0e1a">
+    <title>Motor Starter Simulator v3.1</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header class="no-print">
+    <header>
         <div class="header-content">
-            <h1>MotorStart Pro <small>v3.1</small></h1>
-            <div id="offlineIndicator" class="badge-online">● Online</div>
+            <h1>Motor Starter Simulator <small>v3.1</small></h1>
+            <div class="header-right">
+                <span class="signature">By: Ayman Elkhodary</span>
+                <button id="btnExportPDF" class="btn-pdf">💾 Save to PDF</button>
+            </div>
         </div>
     </header>
 
-    <div class="print-header">
-        <h2>Motor Starting Analysis Report</h2>
-        <p id="printDate"></p>
-    </div>
-
     <main class="dashboard">
-        <aside class="sidebar no-print">
-            <section class="card">
-                <h3>1. System Configuration</h3>
-                <div class="input-grid">
-                    <div class="field"><label>Power (kW)</label><input type="number" id="mKW" value="110"></div>
-                    <div class="field"><label>Voltage (V)</label><input type="number" id="mVolts" value="400"></div>
-                    <div class="field"><label>FLC (A)</label><input type="number" id="mFLC" value="195"></div>
-                    <div class="field"><label>RPM</label><input type="number" id="mRPM" value="1485"></div>
-                    <div class="field"><label>Hot Stall (s)</label><input type="number" id="hStall" value="20"></div>
-                </div>
-                
-                <h4 class="sub-header">Inertia (J) kgm²</h4>
-                <div class="input-grid">
-                    <div class="field"><label>Motor J</label><input type="number" id="motorJ" value="1.2"></div>
-                    <div class="field"><label>Load J</label><input type="number" id="loadJ" value="8.5"></div>
-                    <div class="field full-width disabled-look"><label>Total Inertia</label><div id="totalJ" class="fake-input">9.7</div></div>
-                </div>
+        <aside class="sidebar">
+            <section class="card case-manager">
+                <h3>📁 Case Manager</h3>
+                <div class="info-banner" style="margin-top:0">Auto-saves last run configuration.</div>
             </section>
 
             <section class="card">
-                <h3>2. Starter Settings</h3>
-                <div class="tabs">
-                    <button class="tab-btn active" data-mode="DOL">DOL</button>
-                    <button class="tab-btn" data-mode="SS">Soft Start</button>
+                <h3>⚙️ Configuration</h3>
+                <div class="grid-2">
+                    <div class="f-group"><label>Power (kW)</label><input type="number" id="mKW" value="450" onchange="updateHeader()"></div>
+                    <div class="f-group"><label>FLC (A)</label><input type="number" id="mFLC" value="48"></div>
+                    <div class="f-group"><label>RPM</label><input type="number" id="mRPM" value="1485"></div>
+                    <div class="f-group"><label>Hot Stall (s)</label><input type="number" id="hStall" value="15"></div>
                 </div>
                 
-                <div id="ssPanel" class="hidden mt-10">
-                    <div class="input-grid">
-                        <div class="field"><label>Init Current %</label><input type="number" id="ssInitI" value="250"></div>
-                        <div class="field"><label>Current Limit %</label><input type="number" id="ssLimit" value="350"></div>
-                        <div class="field"><label>Ramp Time (s)</label><input type="number" id="ssRamp" value="5"></div>
+                <div class="inertia-section mt-15">
+                    <label class="section-label">Inertia (kgm²)</label>
+                    <div class="grid-2 mt-5">
+                        <div class="f-group"><label>Motor J</label><input type="number" id="motorJ" value="1.96"></div>
+                        <div class="f-group"><label>Load J</label><input type="number" id="loadJ" value="13.74"></div>
                     </div>
+                    <div class="combined-value">Total: <span id="totalJ">15.70</span> kgm²</div>
                 </div>
 
-                <div class="action-buttons mt-15">
-                    <button id="btnSimulate" class="btn-primary">▶ RUN SIMULATION</button>
-                    <button id="btnPDF" class="btn-secondary">📄 SAVE REPORT</button>
+                <div class="f-group mt-15">
+                    <label>Curve Presets</label>
+                    <div class="grid-2">
+                        <select id="motorPreset" class="input-select">
+                            <option value="oem">Standard</option>
+                            <option value="designC">Design C</option>
+                            <option value="highSlip">High Slip</option>
+                        </select>
+                        <select id="loadPreset" class="input-select">
+                            <option value="centrifugal">Pump/Fan</option>
+                            <option value="constant">Conveyor</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="readout-grid">
+                    <div class="readout-item">
+                        <span class="readout-label">Rated Torque</span>
+                        <span class="readout-value" id="resFLT">--</span>
+                        <span class="readout-unit">Nm</span>
+                    </div>
                 </div>
             </section>
 
-            <section class="card collapsed-mobile">
-                <h3>3. Curve Presets</h3>
-                <div class="input-grid">
-                    <div class="field"><label>Motor Type</label>
-                        <select id="motorPreset">
-                            <option value="oem">Standard IEC</option>
-                            <option value="highSlip">High Slip (NEMA D)</option>
-                        </select>
-                    </div>
-                    <div class="field"><label>Load Type</label>
-                        <select id="loadPreset">
-                            <option value="centrifugal">Pump/Fan (Quad)</option>
-                            <option value="constant">Conveyor (Const)</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="curveDataStore" style="display:none;"></div>
+            <section class="card scroll-card">
+                <h3>📊 Curve Data (19 Pts)</h3>
+                <table class="data-table">
+                    <thead><tr><th>Spd%</th><th>Mot T%</th><th>Cur%</th><th>Ld T%</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
             </section>
         </aside>
 
-        <article class="results-area">
-            <div class="results-bar">
-                <div class="res-item"><small>Start Time</small><b id="resTime">--</b></div>
-                <div class="res-item"><small>Thermal Cap</small><b id="resTherm">--</b></div>
-                <div class="res-item"><small>Min Torque</small><b id="resNet">--</b></div>
-                <div class="res-item"><small>Min Start I</small><b id="resMinI">--</b></div>
-            </div>
+        <article class="results">
+            <section class="card">
+                <h3>🎛️ Simulation Control</h3>
+                <div class="mode-selector">
+                    <button id="modeDOL" class="mode-btn active">⚡ DOL</button>
+                    <button id="modeSS" class="mode-btn">🎚️ Soft Start</button>
+                </div>
 
-            <div class="chart-wrapper">
-                <canvas id="mainChart"></canvas>
-            </div>
-            
-            <div class="print-only-footer">
-                <p>Generated by MotorStart Pro - Engineering Digital Twin</p>
-            </div>
+                <div id="ssControls" style="display: none;" class="mt-15">
+                    <div class="grid-3">
+                        <div class="f-group"><label>Init I%</label><input type="number" id="ssInitialI" value="250"></div>
+                        <div class="f-group"><label>Final I%</label><input type="number" id="ssFinalI" value="300"></div>
+                        <div class="f-group"><label>Ramp (s)</label><input type="number" id="ssRampTime" value="5"></div>
+                    </div>
+                </div>
+
+                <div id="solverSection" class="solver-section mt-15" style="display:none;">
+                    <div class="solver-grid">
+                        <div class="f-group"><label>Target Time (s)</label><input type="number" id="targetTime" placeholder="10"></div>
+                        <button id="btnSolveTime" class="btn-main">Solve Current</button>
+                    </div>
+                    <div id="solverStatus" class="solver-status"></div>
+                </div>
+
+                <button id="btnSimulate" class="btn-main btn-simulate">▶️ RUN SIMULATION</button>
+            </section>
+
+            <section class="card">
+                <h3>📈 Key Metrics</h3>
+                <div class="results-grid">
+                    <div class="result-item"><span class="result-label">Time</span><span class="result-value" id="resultTime">--</span></div>
+                    <div class="result-item"><span class="result-label">Thermal <button id="thermalToggle" class="btn-thermal">→ I²t</button></span><span class="result-value" id="resultTherm">--</span></div>
+                    <div class="result-item"><span class="result-label">Min Net Torque</span><span class="result-value" id="resultNet">--</span></div>
+                    <div class="result-item"><span class="result-label">Min Start I</span><span class="result-value" id="resultMinI">--</span></div>
+                </div>
+            </section>
+
+            <section class="card chart-card">
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </section>
         </article>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="app.js"></script>
-    <script>
-        // PWA Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('SW Registered'))
-                .catch(err => console.error('SW Fail', err));
-        }
-        window.addEventListener('offline', () => document.getElementById('offlineIndicator').className = 'badge-offline');
-        window.addEventListener('online', () => document.getElementById('offlineIndicator').className = 'badge-online');
-    </script>
 </body>
 </html>
