@@ -399,6 +399,26 @@ input:focus, .input-select:focus {
     color: #fff;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.result-value[contenteditable="true"] {
+    cursor: text;
+    background: rgba(34, 211, 238, 0.05);
+    border: 1px dashed var(--accent);
+}
+
+.result-value[contenteditable="true"]:hover {
+    background: rgba(34, 211, 238, 0.1);
+    border-color: var(--accent);
+}
+
+.result-value[contenteditable="true"]:focus {
+    outline: none;
+    background: rgba(34, 211, 238, 0.15);
+    border: 1px solid var(--accent);
 }
 
 .btn-thermal {

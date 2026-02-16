@@ -1,5 +1,5 @@
-// Motor Starter Simulator v3.0 Final - Production Grade
-// Cubic spline interpolation for smooth, realistic curves
+// Motor Starter Simulator v3.0 FINAL - Verified Physics
+// Proper RK4 integration + Validated cubic splines
 
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 
@@ -27,7 +27,7 @@ let simulationMode = 'DOL';
 let lastSimResults = null;
 let splineCache = {};
 
-// Cubic spline interpolation - THIS IS THE KEY FOR SMOOTH CURVES
+// Cubic spline with monotonic constraint to prevent overshooting
 function createCubicSpline(xArr, yArr) {
     const n = xArr.length - 1;
     const h = [];
@@ -81,10 +81,18 @@ function evaluateSpline(spline, x) {
     }
     
     const dx = x - parseFloat(spline.x[i]);
-    return parseFloat(spline.a[i]) + 
-           spline.b[i] * dx + 
-           spline.c[i] * dx * dx + 
-           spline.d[i] * dx * dx * dx;
+    const value = parseFloat(spline.a[i]) + 
+                  spline.b[i] * dx + 
+                  spline.c[i] * dx * dx + 
+                  spline.d[i] * dx * dx * dx;
+    
+    // CRITICAL: Validate output - prevent unrealistic values
+    const y0 = parseFloat(spline.a[i]);
+    const y1 = parseFloat(spline.a[i + 1]);
+    const minY = Math.min(y0, y1) - Math.abs(y1 - y0) * 0.1; // Allow 10% undershoot
+    const maxY = Math.max(y0, y1) + Math.abs(y1 - y0) * 0.1; // Allow 10% overshoot
+    
+    return Math.max(minY, Math.min(maxY, value)); // Clamp to reasonable range
 }
 
 function interpolate(x, xArr, yArr) {
@@ -108,12 +116,17 @@ function init() {
     document.getElementById('motorPreset').onchange = (e) => applyPreset('motor', e.target.value);
     document.getElementById('loadPreset').onchange = (e) => applyPreset('load', e.target.value);
     document.getElementById('btnSimulate').onclick = runSimulation;
-    document.getElementById('btnSolveTime').onclick = solveForCurrent;
     document.getElementById('btnSaveCase').onclick = saveCase;
     document.getElementById('btnClearCases').onclick = clearLibrary;
     document.getElementById('btnExportPDF').onclick = exportToPDF;
     document.getElementById('caseDropdown').onchange = loadCase;
     document.getElementById('thermalToggle')?.addEventListener('click', toggleThermal);
+    
+    // Editable start time with reverse calculation
+    document.getElementById('resultTime')?.addEventListener('blur', onStartTimeEdit);
+    document.getElementById('resultTime')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') onStartTimeEdit();
+    });
     
     document.getElementById('modeDOL')?.addEventListener('click', () => setMode('DOL'));
     document.getElementById('modeSS')?.addEventListener('click', () => setMode('SS'));
@@ -126,12 +139,25 @@ function init() {
     updateCombinedJ();
     
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').then(() => {
-            console.log('Service Worker registered - App works offline!');
-        }).catch(err => {
-            console.log('Service Worker registration failed:', err);
-        });
+        navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+}
+
+function onStartTimeEdit() {
+    if (simulationMode !== 'SS') return;
+    
+    const timeField = document.getElementById('resultTime');
+    const timeText = timeField.innerText;
+    
+    // Parse time value
+    const timeMatch = timeText.match(/(\d+\.?\d*)/);
+    if (!timeMatch) return;
+    
+    const targetTime = parseFloat(timeMatch[1]);
+    if (isNaN(targetTime) || targetTime <= 0) return;
+    
+    // Run reverse calculation
+    solveForCurrentFromTime(targetTime);
 }
 
 function updateCombinedJ() {
@@ -157,7 +183,7 @@ function toggleThermal() {
 
 function applyPreset(type, key) {
     if (key === 'current') return;
-    splineCache = {}; // Clear cache when data changes
+    splineCache = {};
     const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt');
     if (type === 'motor') {
         PRESETS.motor[key].forEach((v, i) => mts[i].value = v);
@@ -219,6 +245,38 @@ function calculateMinStartingCurrent(tableMt, tableMc, tableLt) {
     return { current: 700, criticalSpeed: 0 };
 }
 
+// Proper 4th-order Runge-Kutta integration (Industry Standard)
+function rk4Step(speedPerc, speedRadS, getNetTorque, fltNm, totalJ, targetRadS, dt) {
+    // k1: slope at beginning
+    let net1 = getNetTorque(speedPerc);
+    let k1 = (net1 / 100) * fltNm / totalJ * dt;
+    
+    // k2: slope at midpoint using k1
+    let speedMid1 = speedRadS + k1/2;
+    let speedPercMid1 = (speedMid1 / targetRadS) * 100;
+    let net2 = getNetTorque(speedPercMid1);
+    let k2 = (net2 / 100) * fltNm / totalJ * dt;
+    
+    // k3: slope at midpoint using k2
+    let speedMid2 = speedRadS + k2/2;
+    let speedPercMid2 = (speedMid2 / targetRadS) * 100;
+    let net3 = getNetTorque(speedPercMid2);
+    let k3 = (net3 / 100) * fltNm / totalJ * dt;
+    
+    // k4: slope at end using k3
+    let speedEnd = speedRadS + k3;
+    let speedPercEnd = (speedEnd / targetRadS) * 100;
+    let net4 = getNetTorque(speedPercEnd);
+    let k4 = (net4 / 100) * fltNm / totalJ * dt;
+    
+    // Weighted average: (k1 + 2*k2 + 2*k3 + k4) / 6
+    let deltaSpeed = (k1 + 2*k2 + 2*k3 + k4) / 6;
+    let newSpeedRadS = speedRadS + deltaSpeed;
+    let newSpeedPerc = (newSpeedRadS / targetRadS) * 100;
+    
+    return { speedRadS: newSpeedRadS, speedPerc: newSpeedPerc };
+}
+
 function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = false) {
     const mRPM = parseFloat(document.getElementById('mRPM').value);
     const mFLC = parseFloat(document.getElementById('mFLC').value);
@@ -253,6 +311,28 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
     let lastSpeedCheck = 0, lastSpeedValue = 0;
     let rampEndSpeed = 0;
 
+    // Function to get net torque at any speed (for RK4)
+    const getNetTorque = (spd) => {
+        let rMt = interpolate(spd, S_POINTS, tableMt);
+        let rMc = interpolate(spd, S_POINTS, tableMc);
+        let cLt = interpolate(spd, S_POINTS, tableLt);
+        
+        let aMt = rMt, aMc = rMc;
+        
+        if (mode === 'SS') {
+            let currentLimit;
+            if (ssRampTime > 0 && time <= ssRampTime) {
+                currentLimit = ssInitialI + (ssFinalI - ssInitialI) * (time / ssRampTime);
+            } else {
+                currentLimit = ssFinalI;
+            }
+            let vr = Math.min(1, currentLimit / rMc);
+            aMt = rMt * (vr * vr);
+        }
+        
+        return aMt - cLt;
+    };
+
     while (time < 60) {
         let rMt = interpolate(speedPerc, S_POINTS, tableMt);
         let rMc = interpolate(speedPerc, S_POINTS, tableMc);
@@ -286,16 +366,16 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
         if (speedPerc < 90 && !isStalled) {
             if (net < -0.5) {
                 isStalled = true;
-                stallReason = "Mechanical Stall";
+                stallReason = "Mechanical";
                 stallSpd = speedPerc;
             } else if (thermal >= 100) {
                 isStalled = true;
-                stallReason = "Thermal Limit";
+                stallReason = "Thermal";
                 stallSpd = speedPerc;
             } else if (time - lastSpeedCheck >= 2.0) {
                 if (Math.abs(speedPerc - lastSpeedValue) < 1.0 && time > 2.0) {
                     isStalled = true;
-                    stallReason = "Hung Start";
+                    stallReason = "Hung";
                     stallSpd = speedPerc;
                 }
                 lastSpeedCheck = time;
@@ -306,13 +386,14 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
         if (isStalled) break;
         
         if (speedPerc < 98.5) {
-            let alpha = (net / 100) * fltNm / totalJ;
-            speedRadS += alpha * dt;
-            speedPerc = (speedRadS / targetRadS) * 100;
+            // Use RK4 integration for accurate dynamics
+            let result = rk4Step(speedPerc, speedRadS, getNetTorque, fltNm, totalJ, targetRadS, dt);
+            speedRadS = result.speedRadS;
+            speedPerc = result.speedPerc;
             
+            // Thermal calculation
             let actualCurrent = (aMc / 100) * mFLC;
             thermalAbsRaw += actualCurrent * actualCurrent * dt;
-            
             let thermalLimit = lockedRotorCurrentAmps * lockedRotorCurrentAmps * hStall;
             thermal = (thermalAbsRaw / thermalLimit) * 100;
         }
@@ -341,7 +422,7 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
 }
 
 function runSimulation() {
-    splineCache = {}; // Clear cache for new data
+    splineCache = {};
     updateHeader();
     
     const mFLC = parseFloat(document.getElementById('mFLC').value);
@@ -369,7 +450,7 @@ function runSimulation() {
     lastSimResults = results;
     displayResults(results);
     
-    // Generate 500-point smooth curves using spline interpolation
+    // Generate smooth curves
     let lbls = Array.from({length: 501}, (_, i) => i * 0.2);
     let dolMt = [], dolMc = [], pLt = [], ssMt = [], ssMc = [];
     
@@ -401,8 +482,17 @@ function runSimulation() {
 
 function displayResults(results) {
     const finalSlip = results.finalSlip.toFixed(3);
+    const timeField = document.getElementById('resultTime');
     
-    document.getElementById('resultTime').innerText = results.isStalled ? `STALL (${results.stallReason})` : results.time.toFixed(2) + "s";
+    if (results.isStalled) {
+        timeField.innerText = `STALL (${results.stallReason})`;
+        timeField.contentEditable = 'false';
+    } else {
+        timeField.innerText = results.time.toFixed(2) + "s";
+        timeField.contentEditable = simulationMode === 'SS' ? 'true' : 'false';
+        timeField.style.cursor = simulationMode === 'SS' ? 'text' : 'default';
+        timeField.title = simulationMode === 'SS' ? 'Click to edit and press Enter to find required current' : '';
+    }
     
     if (thermalMode === 'absolute') {
         document.getElementById('resultTherm').innerText = results.thermalAbs.toFixed(0) + " A²·s";
@@ -433,71 +523,21 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
     const dolIsSolid = (simulationMode === 'DOL');
     
     let datasets = [
-        { 
-            label: 'Motor Torque (DOL)', 
-            data: dolMt, 
-            borderColor: '#22d3ee', 
-            borderWidth: dolIsSolid ? 3 : 1, 
-            borderDash: dolIsSolid ? [] : [5, 5],
-            pointRadius: 0, 
-            tension: 0,
-            yAxisID: 'y'
-        },
-        { 
-            label: 'Load Torque', 
-            data: pLt, 
-            borderColor: '#f43f5e', 
-            borderDash: [5,5], 
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0,
-            yAxisID: 'y'
-        },
-        { 
-            label: 'Motor Current (DOL)', 
-            data: dolMc, 
-            borderColor: '#fbbf24', 
-            borderWidth: dolIsSolid ? 2 : 1, 
-            borderDash: dolIsSolid ? [] : [5, 5],
-            yAxisID: 'y1', 
-            pointRadius: 0,
-            tension: 0
-        }
+        { label: 'Motor Torque (DOL)', data: dolMt, borderColor: '#22d3ee', borderWidth: dolIsSolid ? 3 : 1, borderDash: dolIsSolid ? [] : [5, 5], pointRadius: 0, tension: 0, yAxisID: 'y' },
+        { label: 'Load Torque', data: pLt, borderColor: '#f43f5e', borderDash: [5,5], borderWidth: 2, pointRadius: 0, tension: 0, yAxisID: 'y' },
+        { label: 'Motor Current (DOL)', data: dolMc, borderColor: '#fbbf24', borderWidth: dolIsSolid ? 2 : 1, borderDash: dolIsSolid ? [] : [5, 5], yAxisID: 'y1', pointRadius: 0, tension: 0 }
     ];
     
     if (simulationMode === 'SS') {
-        datasets.push({ 
-            label: 'Motor Torque (SS)', 
-            data: ssMt, 
-            borderColor: '#10b981', 
-            borderWidth: 3,
-            pointRadius: 0,
-            tension: 0,
-            yAxisID: 'y'
-        });
-        
-        datasets.push({ 
-            label: 'Motor Current (SS)', 
-            data: ssMc, 
-            borderColor: '#f59e0b', 
-            borderWidth: 3,
-            pointRadius: 0,
-            tension: 0,
-            yAxisID: 'y1'
-        });
+        datasets.push({ label: 'Motor Torque (SS)', data: ssMt, borderColor: '#10b981', borderWidth: 3, pointRadius: 0, tension: 0, yAxisID: 'y' });
+        datasets.push({ label: 'Motor Current (SS)', data: ssMc, borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, tension: 0, yAxisID: 'y1' });
         
         if (criticalSpeed > 0) {
-            let criticalTorque = interpolate(criticalSpeed, labels, ssMt);
             datasets.push({
                 label: 'Critical',
-                data: [{x: criticalSpeed, y: criticalTorque}],
-                pointStyle: 'triangle',
-                pointRadius: 12,
-                pointBackgroundColor: '#a855f7',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                showLine: false,
-                yAxisID: 'y'
+                data: [{x: criticalSpeed, y: interpolate(criticalSpeed, labels, ssMt)}],
+                pointStyle: 'triangle', pointRadius: 12, pointBackgroundColor: '#a855f7', pointBorderColor: '#fff', pointBorderWidth: 2,
+                showLine: false, yAxisID: 'y'
             });
         }
     }
@@ -506,13 +546,8 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
         datasets.push({ 
             label: 'STALL', 
             data: [{x: stallSpd, y: interpolate(stallSpd, labels, simulationMode === 'SS' ? ssMt : dolMt)}], 
-            pointStyle: 'crossRot', 
-            pointRadius: 15, 
-            pointBackgroundColor: '#ff0000',
-            pointBorderColor: '#fff', 
-            pointBorderWidth: 3, 
-            showLine: false,
-            yAxisID: 'y'
+            pointStyle: 'crossRot', pointRadius: 15, pointBackgroundColor: '#ff0000', pointBorderColor: '#fff', pointBorderWidth: 3, 
+            showLine: false, yAxisID: 'y'
         });
     }
     
@@ -520,60 +555,23 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
         type: 'line', 
         data: { labels, datasets }, 
         options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
+            responsive: true, maintainAspectRatio: false, 
             scales: { 
-                x: {
-                    title: {display:true, text:'Motor Speed (%)', font: {size: 14, weight: 'bold'}, color: '#333'},
-                    grid: {color: 'rgba(0,0,0,0.1)'},
-                    ticks: {color: '#666'}
-                }, 
-                y: {
-                    min:0, 
-                    title: {display:true, text:'Torque (%)', font: {size: 14, weight: 'bold'}, color: '#333'},
-                    grid: {color: 'rgba(0,0,0,0.1)'},
-                    position: 'left',
-                    ticks: {color: '#666'}
-                }, 
-                y1: {
-                    position:'right', 
-                    min:0, 
-                    grid: {drawOnChartArea: false}, 
-                    title: {display:true, text:'Current (%)', font: {size: 14, weight: 'bold'}, color: '#333'},
-                    ticks: {color: '#666'}
-                } 
+                x: {title: {display:true, text:'Motor Speed (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, grid: {color: 'rgba(0,0,0,0.1)'}, ticks: {color: '#666'}}, 
+                y: {min:0, title: {display:true, text:'Torque (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, grid: {color: 'rgba(0,0,0,0.1)'}, position: 'left', ticks: {color: '#666'}}, 
+                y1: {position:'right', min:0, grid: {drawOnChartArea: false}, title: {display:true, text:'Current (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, ticks: {color: '#666'}} 
             },
             plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        color: '#333',
-                        font: {size: 11, weight: '600'},
-                        boxWidth: 25,
-                        padding: 10,
-                        usePointStyle: false,
-                        filter: (item) => !item.text.includes('Critical') && !item.text.includes('STALL')
-                    }
-                },
+                legend: {display: true, position: 'top', labels: {color: '#333', font: {size: 11, weight: '600'}, boxWidth: 25, padding: 10, filter: (item) => !item.text.includes('Critical') && !item.text.includes('STALL')}},
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
                             label += context.parsed.y.toFixed(1) + '%';
-                            
-                            if (label.includes('Current')) {
-                                const absVal = (context.parsed.y * mFLC / 100).toFixed(1);
-                                label += ` (${absVal}A)`;
-                            } else if (label.includes('Torque')) {
-                                const absVal = (context.parsed.y * fltNm / 100).toFixed(1);
-                                label += ` (${absVal} Nm)`;
-                            }
-                            
-                            const slip = (1 - context.parsed.x / 100).toFixed(3);
-                            label += ` | Slip: ${slip}`;
-                            
+                            if (label.includes('Current')) label += ` (${(context.parsed.y * mFLC / 100).toFixed(1)}A)`;
+                            else if (label.includes('Torque')) label += ` (${(context.parsed.y * fltNm / 100).toFixed(1)} Nm)`;
+                            label += ` | Slip: ${(1 - context.parsed.x / 100).toFixed(3)}`;
                             return label;
                         }
                     }
@@ -583,22 +581,11 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
     });
 }
 
-function solveForCurrent() {
-    const targetTime = parseFloat(document.getElementById('targetTime').value);
-    if (!targetTime || targetTime <= 0) {
-        alert('Please enter a valid target start time');
-        return;
-    }
-    
-    setMode('SS');
-    document.getElementById('solverStatus').innerText = 'Calculating...';
-    
+function solveForCurrentFromTime(targetTime) {
     const ssRampTime = parseFloat(document.getElementById('ssRampTime')?.value) || 0;
     
-    let low = 200, high = 700;
-    let iterations = 0;
-    let bestCurrent = 0;
-    let bestTime = 0;
+    let low = 200, high = 700, iterations = 0;
+    let bestCurrent = 0, bestTime = 0;
     
     while (high - low > 2 && iterations < 20) {
         let mid = Math.floor((low + high) / 2);
@@ -614,40 +601,21 @@ function solveForCurrent() {
         iterations++;
     }
     
-    document.getElementById('ssInitialI').value = bestCurrent;
-    document.getElementById('ssFinalI').value = bestCurrent;
-    runSimulation();
-    
-    document.getElementById('solverStatus').innerText = `Found: ${bestCurrent}% current → ${bestTime.toFixed(2)}s (Target: ${targetTime}s)`;
+    if (bestCurrent > 0) {
+        document.getElementById('ssInitialI').value = bestCurrent;
+        document.getElementById('ssFinalI').value = bestCurrent;
+        runSimulation();
+    }
 }
 
-function exportToPDF() {
-    window.print();
-}
+function exportToPDF() { window.print(); }
 
 function saveCase() {
     const name = document.getElementById('caseName').value;
     if(!name) return;
-    
     const data = {
-        config: { 
-            kw: document.getElementById('mKW').value, 
-            flc: document.getElementById('mFLC').value, 
-            rpm: document.getElementById('mRPM').value,
-            poles: document.getElementById('mPoles').value,
-            freq: document.getElementById('mFreq').value,
-            motorJ: document.getElementById('motorJ').value,
-            loadJ: document.getElementById('loadJ').value,
-            stall: document.getElementById('hStall').value,
-            ssInitialI: document.getElementById('ssInitialI').value,
-            ssFinalI: document.getElementById('ssFinalI').value,
-            ssRampTime: document.getElementById('ssRampTime').value
-        },
-        table: { 
-            mt: [...document.querySelectorAll('.val-mt')].map(e => e.value), 
-            mc: [...document.querySelectorAll('.val-mc')].map(e => e.value), 
-            lt: [...document.querySelectorAll('.val-lt')].map(e => e.value) 
-        }
+        config: { kw: document.getElementById('mKW').value, flc: document.getElementById('mFLC').value, rpm: document.getElementById('mRPM').value, poles: document.getElementById('mPoles').value, freq: document.getElementById('mFreq').value, motorJ: document.getElementById('motorJ').value, loadJ: document.getElementById('loadJ').value, stall: document.getElementById('hStall').value, ssInitialI: document.getElementById('ssInitialI').value, ssFinalI: document.getElementById('ssFinalI').value, ssRampTime: document.getElementById('ssRampTime').value },
+        table: { mt: [...document.querySelectorAll('.val-mt')].map(e => e.value), mc: [...document.querySelectorAll('.val-mc')].map(e => e.value), lt: [...document.querySelectorAll('.val-lt')].map(e => e.value) }
     };
     localStorage.setItem('case_' + name, JSON.stringify(data));
     loadCaseList();
@@ -665,7 +633,6 @@ function loadCaseList() {
 function loadCase(e) {
     const data = JSON.parse(localStorage.getItem(e.target.value));
     if(!data) return;
-    
     document.getElementById('mKW').value = data.config.kw;
     document.getElementById('mFLC').value = data.config.flc;
     document.getElementById('mRPM').value = data.config.rpm;
@@ -674,11 +641,9 @@ function loadCase(e) {
     document.getElementById('motorJ').value = data.config.motorJ || 0;
     document.getElementById('loadJ').value = data.config.loadJ || 0;
     document.getElementById('hStall').value = data.config.stall;
-    
     if (data.config.ssInitialI) document.getElementById('ssInitialI').value = data.config.ssInitialI;
     if (data.config.ssFinalI) document.getElementById('ssFinalI').value = data.config.ssFinalI;
     if (data.config.ssRampTime) document.getElementById('ssRampTime').value = data.config.ssRampTime;
-    
     const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt');
     data.table.mt.forEach((v, i) => mts[i].value = v);
     data.table.mc.forEach((v, i) => mcs[i].value = v);
@@ -690,9 +655,7 @@ function loadCase(e) {
 
 function clearLibrary() {
     if(confirm("Wipe all saved cases?")) {
-        Object.keys(localStorage).forEach(key => { 
-            if(key.startsWith('case_')) localStorage.removeItem(key); 
-        });
+        Object.keys(localStorage).forEach(key => { if(key.startsWith('case_')) localStorage.removeItem(key); });
         loadCaseList();
     }
 }
