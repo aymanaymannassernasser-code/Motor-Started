@@ -13,6 +13,8 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 body { 
@@ -22,7 +24,9 @@ body {
     font-size: 15px;
     margin: 0; 
     height: 100vh; 
-    overflow: hidden; 
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 header { 
@@ -223,7 +227,7 @@ input:focus, .input-select:focus {
 }
 
 .btn-main { 
-    padding: 12px 20px; 
+    padding: 14px 22px; 
     border: none; 
     font-weight: 700; 
     cursor: pointer; 
@@ -235,12 +239,16 @@ input:focus, .input-select:focus {
     letter-spacing: 0.5px;
     transition: all 0.2s;
     font-family: 'Inter', sans-serif;
+    min-height: 44px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
-.btn-main:hover {
+.btn-main:hover, .btn-main:active {
     background: #06b6d4;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(34, 211, 238, 0.3);
 }
 
 .save-btn { 
@@ -474,41 +482,6 @@ input:focus, .input-select:focus {
     box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.chart-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-top: 12px;
-    padding: 12px;
-    background: #0a0e1a;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.legend-color {
-    width: 24px;
-    height: 4px;
-    margin-right: 8px;
-    border-radius: 2px;
-}
-
-.chart-info {
-    margin-top: 12px;
-    padding: 10px;
-    background: rgba(34, 211, 238, 0.05);
-    border-radius: 6px;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-align: center;
-}
-
 /* Mobile Responsive */
 @media (max-width: 1400px) {
     .dashboard {
@@ -538,6 +511,8 @@ input:focus, .input-select:focus {
 @media (max-width: 768px) {
     body {
         font-size: 14px;
+        overflow-y: auto;
+        height: auto;
     }
     
     h1 {
@@ -547,11 +522,19 @@ input:focus, .input-select:focus {
     .header-content {
         flex-direction: column;
         gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
     }
     
     .dashboard {
         padding: 15px;
         gap: 15px;
+        height: auto;
+        overflow-y: visible;
     }
     
     .grid-2, .grid-3 {
@@ -563,8 +546,8 @@ input:focus, .input-select:focus {
     }
     
     .chart-container {
-        height: 400px;
-        padding: 15px;
+        height: 350px;
+        padding: 15px 10px;
     }
     
     .solver-grid {
@@ -578,6 +561,14 @@ input:focus, .input-select:focus {
     .signature {
         font-size: 0.75rem;
     }
+    
+    .results {
+        overflow-y: visible;
+    }
+    
+    .sidebar {
+        overflow-y: visible;
+    }
 }
 
 @media (max-width: 480px) {
@@ -586,8 +577,8 @@ input:focus, .input-select:focus {
     }
     
     .chart-container {
-        height: 320px;
-        padding: 10px;
+        height: 300px;
+        padding: 10px 5px;
     }
     
     h1 {
@@ -595,7 +586,28 @@ input:focus, .input-select:focus {
     }
     
     input, .input-select {
+        font-size: 16px;
+        min-height: 44px;
+    }
+    
+    .btn-main {
+        min-height: 48px;
         font-size: 0.85rem;
+    }
+    
+    .mode-btn {
+        min-height: 48px;
+    }
+    
+    .header-right {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .btn-pdf {
+        width: 100%;
+        min-height: 44px;
     }
 }
 

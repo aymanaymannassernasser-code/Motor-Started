@@ -2,11 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Professional motor starting simulator with DOL and Soft Start analysis">
     <meta name="theme-color" content="#22d3ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Motor Starter">
     <title>Motor Starter Simulator v3.0 | Professional Edition</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%2322d3ee' width='512' height='512'/%3E%3Cpath fill='%23000' d='M128 256l128-128v96h128v64H256v96z'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 </head>
@@ -175,18 +179,8 @@
 
             <section class="card">
                 <h3>📊 Torque-Current-Speed Characteristics</h3>
-                <div class="chart-legend">
-                    <span class="legend-item"><span class="legend-color" style="background: #22d3ee;"></span> Motor Torque (Cyan)</span>
-                    <span class="legend-item"><span class="legend-color" style="background: #f43f5e;"></span> Load Torque (Red, dashed)</span>
-                    <span class="legend-item"><span class="legend-color" style="background: #fbbf24;"></span> Motor Current (Yellow)</span>
-                    <span class="legend-item"><span class="legend-color" style="background: #10b981;"></span> SS Torque (Green)</span>
-                    <span class="legend-item"><span class="legend-color" style="background: #f59e0b;"></span> SS Current (Orange)</span>
-                </div>
                 <div class="chart-container">
                     <canvas id="mainChart"></canvas>
-                </div>
-                <div class="chart-info">
-                    💡 Solid lines = active mode | Dashed lines = reference | Hover for absolute values & slip
                 </div>
             </section>
         </article>
