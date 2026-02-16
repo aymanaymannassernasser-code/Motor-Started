@@ -384,9 +384,54 @@ function renderChart(labels, dolT, dolC, ssT, ssC, load) {
     ];
     
     if (simulationMode === 'SS') {
-        // Overlay Soft Start Curves
         datasets.push({ label: 'SS Torque', data: ssT, borderColor: '#10b981', borderWidth: 3, pointRadius: 0 });
         datasets.push({ label: 'SS Current', data: ssC, borderColor: '#f59e0b', borderWidth: 3, yAxisID: 'y1', pointRadius: 0 });
+    }
+
+    const annotations = {
+        legend1: {
+            type: 'label',
+            xValue: 5,
+            yValue: 280,
+            content: ['━━ Motor Torque (DOL)'],
+            color: '#22d3ee',
+            font: { size: 10, weight: 'bold', family: 'Inter' }
+        },
+        legend2: {
+            type: 'label',
+            xValue: 5,
+            yValue: 260,
+            content: ['━ ━ Load Torque'],
+            color: '#f43f5e',
+            font: { size: 10, weight: 'bold', family: 'Inter' }
+        },
+        legend3: {
+            type: 'label',
+            xValue: 5,
+            yValue: 240,
+            content: ['· · · Current (DOL)'],
+            color: '#fbbf24',
+            font: { size: 10, weight: 'bold', family: 'Inter' }
+        }
+    };
+
+    if (simulationMode === 'SS') {
+        annotations.legend4 = {
+            type: 'label',
+            xValue: 5,
+            yValue: 220,
+            content: ['━━ SS Torque'],
+            color: '#10b981',
+            font: { size: 10, weight: 'bold', family: 'Inter' }
+        };
+        annotations.legend5 = {
+            type: 'label',
+            xValue: 5,
+            yValue: 200,
+            content: ['━━ SS Current'],
+            color: '#f59e0b',
+            font: { size: 10, weight: 'bold', family: 'Inter' }
+        };
     }
 
     chart = new Chart(ctx, {
@@ -403,9 +448,10 @@ function renderChart(labels, dolT, dolC, ssT, ssC, load) {
             },
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top', // INTERNAL LEGEND
-                    labels: { color: '#e2e8f0', font: { size: 11 }, boxWidth: 12 }
+                    display: false
+                },
+                annotation: {
+                    annotations: annotations
                 },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -420,6 +466,15 @@ function renderChart(labels, dolT, dolC, ssT, ssC, load) {
 }
 
 function exportToPDF() {
+    document.getElementById('printPower').textContent = document.getElementById('mKW').value;
+    document.getElementById('printFLC').textContent = document.getElementById('mFLC').value;
+    document.getElementById('printRPM').textContent = document.getElementById('mRPM').value;
+    document.getElementById('printStall').textContent = document.getElementById('hStall').value;
+    document.getElementById('printMotorJ').textContent = document.getElementById('motorJ').value;
+    document.getElementById('printLoadJ').textContent = document.getElementById('loadJ').value;
+    document.getElementById('printTotalJ').textContent = document.getElementById('totalJ').textContent;
+    document.getElementById('printMode').textContent = simulationMode === 'DOL' ? 'Direct-On-Line (DOL)' : 'Soft Start';
+    
     window.print();
 }
 

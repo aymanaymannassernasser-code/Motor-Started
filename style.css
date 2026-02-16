@@ -19,10 +19,16 @@ body {
 header { 
     padding: 15px 25px; 
     border-bottom: 3px solid var(--accent); 
-    background: #000; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+    background: #000;
+}
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.header-right {
+    display: flex;
+    align-items: center;
 }
 h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #fff; text-transform: uppercase; }
 h1 small { color: var(--accent); font-size: 0.6em; margin-left: 8px; }
@@ -93,22 +99,186 @@ input, select {
 .mt-5 { margin-top: 5px; }
 .btn-thermal { background: transparent; border: 1px solid var(--accent); color: var(--accent); font-size: 0.6rem; cursor: pointer; margin-left: 5px; padding: 2px 5px; border-radius: 3px; }
 
-/* Mobile */
+/* Print-only Config */
+.print-only-config {
+    display: none;
+}
+
+/* Mobile & Tablet */
 @media (max-width: 1024px) {
-    .dashboard { grid-template-columns: 1fr; height: auto; overflow: auto; }
-    .sidebar { overflow: visible; }
-    .results-grid { grid-template-columns: repeat(2, 1fr); }
+    .dashboard { 
+        grid-template-columns: 1fr; 
+        height: auto; 
+        overflow: auto;
+        padding: 10px;
+    }
+    .sidebar { 
+        overflow: visible;
+        padding-right: 0;
+    }
+    .results { 
+        padding-bottom: 20px;
+    }
+    .results-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+    }
+    
+    input, select, button {
+        min-height: 44px;
+        font-size: 16px;
+    }
+    
+    .chart-container {
+        height: 350px;
+    }
+    
+    h1 { 
+        font-size: 1.1rem; 
+    }
+    h1 small { 
+        font-size: 0.5em; 
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .header-right {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+/* Small Mobile */
+@media (max-width: 600px) {
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 280px;
+        padding: 5px;
+    }
+    
+    .card {
+        padding: 15px;
+    }
+    
+    header {
+        padding: 10px 15px;
+    }
+    
+    h1 small {
+        display: none;
+    }
+    
+    .signature {
+        font-size: 0.7rem;
+    }
 }
 
 /* Print */
 @media print {
-    body { background: white; color: black; height: auto; overflow: visible; }
-    header { background: white; border-bottom: 2px solid #000; }
-    .sidebar, .btn-main, button { display: none !important; }
-    .dashboard { display: block; padding: 0; }
-    .card { background: white; border: 1px solid #ccc; page-break-inside: avoid; box-shadow: none; }
-    .chart-container { height: 500px !important; border: 1px solid #000; }
-    .results-grid { grid-template-columns: repeat(4, 1fr); }
-    .result-item { background: white; border: 1px solid #000; color: black; }
-    .result-value { color: black; }
+    body { 
+        background: white; 
+        color: black; 
+        height: auto; 
+        overflow: visible; 
+    }
+    
+    header { 
+        background: white; 
+        border-bottom: 2px solid #000;
+        color: black;
+    }
+    
+    h1 {
+        color: black;
+    }
+    
+    h1 small {
+        color: #666;
+    }
+    
+    .sidebar, .btn-main, button, .mode-selector { 
+        display: none !important; 
+    }
+    
+    .print-only-config {
+        display: block !important;
+        background: #f5f5f5;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #333;
+        page-break-inside: avoid;
+    }
+    
+    .print-only-config h3 {
+        margin: 0 0 10px 0;
+        color: black;
+        font-size: 1rem;
+    }
+    
+    .print-config-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        font-size: 10pt;
+    }
+    
+    .print-config-grid div {
+        color: black;
+    }
+    
+    .dashboard { 
+        display: block; 
+        padding: 0; 
+    }
+    
+    .card { 
+        background: white; 
+        border: 1px solid #333; 
+        page-break-inside: avoid; 
+        box-shadow: none;
+        margin-bottom: 20px;
+    }
+    
+    .card h3 {
+        color: black;
+    }
+    
+    .chart-container { 
+        height: 450px !important; 
+        border: 1px solid #000;
+        background: white;
+    }
+    
+    .results-grid { 
+        grid-template-columns: repeat(4, 1fr); 
+    }
+    
+    .result-item { 
+        background: white; 
+        border: 1px solid #333; 
+        color: black; 
+    }
+    
+    .result-label {
+        color: #666;
+    }
+    
+    .result-value { 
+        color: black; 
+    }
+    
+    canvas {
+        max-width: 100%;
+    }
 }
