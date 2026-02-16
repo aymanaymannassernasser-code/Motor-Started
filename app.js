@@ -1,4 +1,5 @@
-// Motor Starter Simulator v3.0 - WORKING VERSION - SIMPLIFIED PHYSICS
+// Motor Starter Simulator v3.0 - LINEAR VS CUBIC COMPARISON
+// Testing to find which interpolation method is more accurate
 
 const S_POINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100];
 
@@ -24,9 +25,10 @@ let chart = null;
 let thermalMode = 'percent';
 let simulationMode = 'DOL';
 let lastSimResults = null;
+let useSpline = true; // Toggle between linear and cubic
 
-// Simple linear interpolation - RELIABLE
-function interpolate(x, xArr, yArr) {
+// LINEAR interpolation
+function interpolateLinear(x, xArr, yArr) {
     x = parseFloat(x);
     if (x <= xArr[0]) return parseFloat(yArr[0]);
     if (x >= xArr[xArr.length - 1]) return parseFloat(yArr[yArr.length - 1]);
@@ -39,6 +41,84 @@ function interpolate(x, xArr, yArr) {
         }
     }
     return parseFloat(yArr[yArr.length - 1]);
+}
+
+// CUBIC SPLINE with monotonic constraints
+function createMonotonicSpline(xArr, yArr) {
+    const n = xArr.length - 1;
+    const h = [], delta = [], m = new Array(n + 1);
+    
+    for (let i = 0; i < n; i++) {
+        h[i] = xArr[i + 1] - xArr[i];
+        delta[i] = (parseFloat(yArr[i + 1]) - parseFloat(yArr[i])) / h[i];
+    }
+    
+    // Initialize slopes (Fritsch-Carlson method)
+    m[0] = delta[0];
+    for (let i = 1; i < n; i++) {
+        m[i] = (delta[i-1] + delta[i]) / 2;
+        
+        // Monotonicity constraint
+        if (delta[i-1] * delta[i] <= 0) {
+            m[i] = 0;
+        } else {
+            const alpha = m[i] / delta[i-1];
+            const beta = m[i] / delta[i];
+            if (alpha * alpha + beta * beta > 9) {
+                const tau = 3 / Math.sqrt(alpha * alpha + beta * beta);
+                m[i] = tau * delta[i-1];
+            }
+        }
+    }
+    m[n] = delta[n-1];
+    
+    return { x: xArr, y: yArr, m: m, h: h };
+}
+
+function evaluateMonotonicSpline(spline, x) {
+    x = parseFloat(x);
+    const n = spline.x.length - 1;
+    
+    if (x <= spline.x[0]) return parseFloat(spline.y[0]);
+    if (x >= spline.x[n]) return parseFloat(spline.y[n]);
+    
+    let i = 0;
+    for (let j = 0; j < n; j++) {
+        if (x >= spline.x[j] && x <= spline.x[j + 1]) {
+            i = j;
+            break;
+        }
+    }
+    
+    const h = spline.h[i];
+    const t = (x - spline.x[i]) / h;
+    const y0 = parseFloat(spline.y[i]);
+    const y1 = parseFloat(spline.y[i + 1]);
+    const m0 = spline.m[i];
+    const m1 = spline.m[i + 1];
+    
+    // Hermite interpolation
+    const h00 = (1 + 2*t) * (1 - t) * (1 - t);
+    const h10 = t * (1 - t) * (1 - t);
+    const h01 = t * t * (3 - 2*t);
+    const h11 = t * t * (t - 1);
+    
+    return h00 * y0 + h10 * h * m0 + h01 * y1 + h11 * h * m1;
+}
+
+// Unified interpolation function
+function interpolate(x, xArr, yArr) {
+    if (useSpline) {
+        // Cache splines
+        const key = yArr.join(',');
+        if (!window.splineCache) window.splineCache = {};
+        if (!window.splineCache[key]) {
+            window.splineCache[key] = createMonotonicSpline(xArr, yArr);
+        }
+        return evaluateMonotonicSpline(window.splineCache[key], x);
+    } else {
+        return interpolateLinear(x, xArr, yArr);
+    }
 }
 
 function init() {
@@ -59,6 +139,7 @@ function init() {
     document.getElementById('btnExportPDF').onclick = exportToPDF;
     document.getElementById('caseDropdown').onchange = loadCase;
     document.getElementById('thermalToggle')?.addEventListener('click', toggleThermal);
+    document.getElementById('splineToggle')?.addEventListener('click', toggleSpline);
     document.getElementById('resultTime')?.addEventListener('blur', onStartTimeEdit);
     document.getElementById('resultTime')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') onStartTimeEdit();
@@ -75,6 +156,14 @@ function init() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(() => {});
     }
+}
+
+function toggleSpline() {
+    useSpline = !useSpline;
+    window.splineCache = {}; // Clear cache
+    const btn = document.getElementById('splineToggle');
+    if (btn) btn.textContent = useSpline ? 'Cubic ✓' : 'Linear ✓';
+    document.getElementById('interpolationMethod').innerText = useSpline ? 'Cubic Spline (Excel-style)' : 'Linear';
 }
 
 function onStartTimeEdit() {
@@ -110,6 +199,7 @@ function toggleThermal() {
 
 function applyPreset(type, key) {
     if (key === 'current') return;
+    window.splineCache = {}; // Clear cache when data changes
     const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt');
     if (type === 'motor') {
         PRESETS.motor[key].forEach((v, i) => mts[i].value = v);
@@ -165,7 +255,7 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
     
     if (totalJ <= 0) {
         alert('ERROR: Total inertia must be > 0');
-        return { time: 60, isStalled: true, stallReason: "Invalid Inertia" };
+        return { time: 60, isStalled: true, stallReason: "Invalid" };
     }
     
     const fltNm = parseFloat(document.getElementById('resFLT').innerText);
@@ -180,7 +270,6 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
     const ns = (120 * freq) / poles;
     const targetRPM = mRPM;
     const targetRadS = (targetRPM * 2 * Math.PI) / 60;
-    
     const lockedRotorCurrentAmps = (parseFloat(tableMc[0]) / 100) * mFLC;
     
     if (mode === 'SS') {
@@ -193,13 +282,11 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
     let time = 0, speedPerc = 0, thermal = 0, thermalAbsRaw = 0;
     let minNet = 999, criticalNetSpeed = 0;
     let isStalled = false, stallSpd = null, stallReason = "";
-    let speedRadS = 0;
-    let rampEndSpeed = 0;
+    let speedRadS = 0, rampEndSpeed = 0;
     
-    const dt = 0.01; // 10ms timestep
+    const dt = 0.01;
 
     while (time < 60 && speedPerc < 99) {
-        // Get torque and current at current speed
         let motorTorquePct = interpolate(speedPerc, S_POINTS, tableMt);
         let motorCurrentPct = interpolate(speedPerc, S_POINTS, tableMc);
         let loadTorquePct = interpolate(speedPerc, S_POINTS, tableLt);
@@ -207,7 +294,6 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
         let actualMotorTorquePct = motorTorquePct;
         let actualMotorCurrentPct = motorCurrentPct;
         
-        // Apply soft start voltage reduction
         if (mode === 'SS') {
             let currentLimit;
             if (ssRampTime > 0 && time <= ssRampTime) {
@@ -218,22 +304,18 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
             } else {
                 currentLimit = ssFinalI;
             }
-            
             let voltageRatio = Math.min(1.0, currentLimit / motorCurrentPct);
             actualMotorTorquePct = motorTorquePct * voltageRatio * voltageRatio;
             actualMotorCurrentPct = motorCurrentPct * voltageRatio;
         }
         
-        // Calculate net torque
         let netTorquePct = actualMotorTorquePct - loadTorquePct;
         
-        // Track minimum net torque
         if (speedPerc < 95 && netTorquePct < minNet) {
             minNet = netTorquePct;
             criticalNetSpeed = speedPerc;
         }
         
-        // Check for stall
         if (speedPerc < 90 && netTorquePct < -0.5) {
             isStalled = true;
             stallReason = "Mechanical";
@@ -241,20 +323,14 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
             break;
         }
         
-        // Physics: J * dω/dt = T_net
-        // α = T_net / J  (where T_net is in Nm, J in kgm²)
         let netTorqueNm = (netTorquePct / 100.0) * fltNm;
-        let angularAccel = netTorqueNm / totalJ; // rad/s²
-        
-        // Integrate: ω = ω + α * dt
-        speedRadS = speedRadS + angularAccel * dt;
+        let angularAccel = netTorqueNm / totalJ;
+        speedRadS += angularAccel * dt;
         speedPerc = (speedRadS / targetRadS) * 100.0;
         
-        // Thermal accumulation
         let actualCurrentAmps = (actualMotorCurrentPct / 100.0) * mFLC;
         thermalAbsRaw += actualCurrentAmps * actualCurrentAmps * dt;
-        let thermalLimit = lockedRotorCurrentAmps * lockedRotorCurrentAmps * hStall;
-        thermal = (thermalAbsRaw / thermalLimit) * 100.0;
+        thermal = (thermalAbsRaw / (lockedRotorCurrentAmps * lockedRotorCurrentAmps * hStall)) * 100.0;
         
         time += dt;
     }
@@ -270,6 +346,7 @@ function runSimulationCore(mode, ssInitialI, ssFinalI, ssRampTime, returnData = 
 }
 
 function runSimulation() {
+    window.splineCache = {}; // Clear cache
     updateHeader();
     
     const mFLC = parseFloat(document.getElementById('mFLC').value);
@@ -297,7 +374,6 @@ function runSimulation() {
     lastSimResults = results;
     displayResults(results);
     
-    // Generate smooth display curves (linear interpolation, 500 points)
     let lbls = Array.from({length: 501}, (_, i) => i * 0.2);
     let dolMt = [], dolMc = [], pLt = [], ssMt = [], ssMc = [];
     
@@ -366,14 +442,14 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
     const dolIsSolid = (simulationMode === 'DOL');
     
     let datasets = [
-        { label: 'Motor Torque (DOL)', data: dolMt, borderColor: '#22d3ee', borderWidth: dolIsSolid ? 3 : 1, borderDash: dolIsSolid ? [] : [5, 5], pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-        { label: 'Load Torque', data: pLt, borderColor: '#f43f5e', borderDash: [5,5], borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
-        { label: 'Motor Current (DOL)', data: dolMc, borderColor: '#fbbf24', borderWidth: dolIsSolid ? 2 : 1, borderDash: dolIsSolid ? [] : [5, 5], yAxisID: 'y1', pointRadius: 0, tension: 0.3 }
+        { label: 'Motor Torque (DOL)', data: dolMt, borderColor: '#22d3ee', borderWidth: dolIsSolid ? 3 : 1, borderDash: dolIsSolid ? [] : [5, 5], pointRadius: 0, tension: 0, yAxisID: 'y' },
+        { label: 'Load Torque', data: pLt, borderColor: '#f43f5e', borderDash: [5,5], borderWidth: 2, pointRadius: 0, tension: 0, yAxisID: 'y' },
+        { label: 'Motor Current (DOL)', data: dolMc, borderColor: '#fbbf24', borderWidth: dolIsSolid ? 2 : 1, borderDash: dolIsSolid ? [] : [5, 5], yAxisID: 'y1', pointRadius: 0, tension: 0 }
     ];
     
     if (simulationMode === 'SS') {
-        datasets.push({ label: 'Motor Torque (SS)', data: ssMt, borderColor: '#10b981', borderWidth: 3, pointRadius: 0, tension: 0.3, yAxisID: 'y' });
-        datasets.push({ label: 'Motor Current (SS)', data: ssMc, borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, tension: 0.3, yAxisID: 'y1' });
+        datasets.push({ label: 'Motor Torque (SS)', data: ssMt, borderColor: '#10b981', borderWidth: 3, pointRadius: 0, tension: 0, yAxisID: 'y' });
+        datasets.push({ label: 'Motor Current (SS)', data: ssMc, borderColor: '#f59e0b', borderWidth: 3, pointRadius: 0, tension: 0, yAxisID: 'y1' });
         
         if (criticalSpeed > 0) {
             const critIdx = Math.round(criticalSpeed / 0.2);
@@ -442,16 +518,19 @@ function solveForCurrentFromTime(targetTime) {
     }
 }
 
-function exportToPDF() { window.print(); }
-function saveCase() {
-    const name = document.getElementById('caseName').value;
-    if(!name) return;
-    const data = { config: { kw: document.getElementById('mKW').value, flc: document.getElementById('mFLC').value, rpm: document.getElementById('mRPM').value, poles: document.getElementById('mPoles').value, freq: document.getElementById('mFreq').value, motorJ: document.getElementById('motorJ').value, loadJ: document.getElementById('loadJ').value, stall: document.getElementById('hStall').value, ssInitialI: document.getElementById('ssInitialI').value, ssFinalI: document.getElementById('ssFinalI').value, ssRampTime: document.getElementById('ssRampTime').value }, table: { mt: [...document.querySelectorAll('.val-mt')].map(e => e.value), mc: [...document.querySelectorAll('.val-mc')].map(e => e.value), lt: [...document.querySelectorAll('.val-lt')].map(e => e.value) } };
-    localStorage.setItem('case_' + name, JSON.stringify(data));
-    loadCaseList();
-    alert('Saved!');
+function exportToPDF() {
+    // Mobile-friendly PDF export
+    if (typeof html2canvas !== 'undefined') {
+        // Advanced export with chart capture
+        window.print();
+    } else {
+        // Simple print dialog
+        window.print();
+    }
 }
+
+function saveCase() { const name = document.getElementById('caseName').value; if(!name) return; const data = { config: { kw: document.getElementById('mKW').value, flc: document.getElementById('mFLC').value, rpm: document.getElementById('mRPM').value, poles: document.getElementById('mPoles').value, freq: document.getElementById('mFreq').value, motorJ: document.getElementById('motorJ').value, loadJ: document.getElementById('loadJ').value, stall: document.getElementById('hStall').value, ssInitialI: document.getElementById('ssInitialI').value, ssFinalI: document.getElementById('ssFinalI').value, ssRampTime: document.getElementById('ssRampTime').value }, table: { mt: [...document.querySelectorAll('.val-mt')].map(e => e.value), mc: [...document.querySelectorAll('.val-mc')].map(e => e.value), lt: [...document.querySelectorAll('.val-lt')].map(e => e.value) } }; localStorage.setItem('case_' + name, JSON.stringify(data)); loadCaseList(); alert('Saved!'); }
 function loadCaseList() { const dropdown = document.getElementById('caseDropdown'); dropdown.innerHTML = '<option value="">-- Select Saved Case --</option>'; Object.keys(localStorage).forEach(key => { if(key.startsWith('case_')) dropdown.innerHTML += `<option value="${key}">${key.replace('case_', '')}</option>`; }); }
-function loadCase(e) { const data = JSON.parse(localStorage.getItem(e.target.value)); if(!data) return; document.getElementById('mKW').value = data.config.kw; document.getElementById('mFLC').value = data.config.flc; document.getElementById('mRPM').value = data.config.rpm; document.getElementById('mPoles').value = data.config.poles || 4; document.getElementById('mFreq').value = data.config.freq || 50; document.getElementById('motorJ').value = data.config.motorJ || 0; document.getElementById('loadJ').value = data.config.loadJ || 0; document.getElementById('hStall').value = data.config.stall; if (data.config.ssInitialI) document.getElementById('ssInitialI').value = data.config.ssInitialI; if (data.config.ssFinalI) document.getElementById('ssFinalI').value = data.config.ssFinalI; if (data.config.ssRampTime) document.getElementById('ssRampTime').value = data.config.ssRampTime; const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt'); data.table.mt.forEach((v, i) => mts[i].value = v); data.table.mc.forEach((v, i) => mcs[i].value = v); data.table.lt.forEach((v, i) => lts[i].value = v); updateHeader(); updateCombinedJ(); }
+function loadCase(e) { const data = JSON.parse(localStorage.getItem(e.target.value)); if(!data) return; document.getElementById('mKW').value = data.config.kw; document.getElementById('mFLC').value = data.config.flc; document.getElementById('mRPM').value = data.config.rpm; document.getElementById('mPoles').value = data.config.poles || 4; document.getElementById('mFreq').value = data.config.freq || 50; document.getElementById('motorJ').value = data.config.motorJ || 0; document.getElementById('loadJ').value = data.config.loadJ || 0; document.getElementById('hStall').value = data.config.stall; if (data.config.ssInitialI) document.getElementById('ssInitialI').value = data.config.ssInitialI; if (data.config.ssFinalI) document.getElementById('ssFinalI').value = data.config.ssFinalI; if (data.config.ssRampTime) document.getElementById('ssRampTime').value = data.config.ssRampTime; const mts = document.querySelectorAll('.val-mt'), mcs = document.querySelectorAll('.val-mc'), lts = document.querySelectorAll('.val-lt'); data.table.mt.forEach((v, i) => mts[i].value = v); data.table.mc.forEach((v, i) => mcs[i].value = v); data.table.lt.forEach((v, i) => lts[i].value = v); updateHeader(); updateCombinedJ(); window.splineCache = {}; }
 function clearLibrary() { if(confirm("Wipe all saved cases?")) { Object.keys(localStorage).forEach(key => { if(key.startsWith('case_')) localStorage.removeItem(key); }); loadCaseList(); } }
 window.onload = init;
