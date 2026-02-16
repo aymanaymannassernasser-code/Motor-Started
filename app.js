@@ -431,7 +431,10 @@ function displayResults(results) {
     }
     
     document.getElementById('resultFinalSlip').innerText = results.finalSlip.toFixed(3);
-    document.getElementById('resultSyncSpeed').innerText = results.ns.toFixed(0) + " RPM";
+    
+    // Calculate operating speed from final slip
+    const operatingSpeed = parseFloat(document.getElementById('mRPM').value) * (1 - results.finalSlip);
+    document.getElementById('resultOpSpeed').innerText = operatingSpeed.toFixed(0) + " RPM";
 }
 
 function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSpeed, mFLC, fltNm) {
@@ -473,15 +476,92 @@ function renderChart(labels, dolMt, dolMc, ssMt, ssMc, pLt, stallSpd, criticalSp
     chart = new Chart(ctx, { 
         type: 'line', data: { labels, datasets }, 
         options: { 
-            responsive: true, maintainAspectRatio: false, 
+            responsive: true, 
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
             scales: { 
-                x: {title: {display:true, text:'Motor Speed (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, grid: {color: 'rgba(0,0,0,0.1)'}, ticks: {color: '#666'}}, 
-                y: {min:0, title: {display:true, text:'Torque (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, grid: {color: 'rgba(0,0,0,0.1)'}, position: 'left', ticks: {color: '#666'}}, 
-                y1: {position:'right', min:0, grid: {drawOnChartArea: false}, title: {display:true, text:'Current (%)', font: {size: 14, weight: 'bold'}, color: '#333'}, ticks: {color: '#666'}} 
+                x: {
+                    title: {
+                        display: true, 
+                        text: 'Motor Speed (%)', 
+                        font: {size: 13, weight: 'bold'}, 
+                        color: '#333'
+                    },
+                    ticks: {
+                        color: '#666',
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: window.innerWidth < 768 ? 6 : 11,
+                        font: {size: window.innerWidth < 480 ? 9 : 10},
+                        callback: function(value, index) {
+                            const speedValue = this.getLabelForValue(value);
+                            if (window.innerWidth < 768) {
+                                // Mobile: show 0, 20, 40, 60, 80, 100
+                                return speedValue % 20 === 0 ? speedValue : '';
+                            } else {
+                                // Desktop: show every 10
+                                return speedValue % 10 === 0 ? speedValue : '';
+                            }
+                        }
+                    },
+                    grid: {color: 'rgba(0,0,0,0.08)'}
+                }, 
+                y: {
+                    min: 0,
+                    title: {
+                        display: true, 
+                        text: 'Torque (%)', 
+                        font: {size: 13, weight: 'bold'}, 
+                        color: '#333'
+                    },
+                    ticks: {
+                        color: '#666',
+                        font: {size: 10}
+                    },
+                    grid: {color: 'rgba(0,0,0,0.08)'},
+                    position: 'left'
+                }, 
+                y1: {
+                    position: 'right', 
+                    min: 0,
+                    title: {
+                        display: true, 
+                        text: 'Current (%)', 
+                        font: {size: 13, weight: 'bold'}, 
+                        color: '#333'
+                    },
+                    ticks: {
+                        color: '#666',
+                        font: {size: 10}
+                    },
+                    grid: {drawOnChartArea: false}
+                } 
             },
             plugins: {
-                legend: {display: true, position: 'top', labels: {color: '#333', font: {size: 11, weight: '600'}, boxWidth: 25, padding: 10, filter: (i) => !i.text.includes('Critical') && !i.text.includes('STALL')}},
+                legend: {
+                    display: true, 
+                    position: 'top',
+                    labels: {
+                        color: '#333',
+                        font: {
+                            size: window.innerWidth < 480 ? 8 : (window.innerWidth < 768 ? 9 : 10), 
+                            weight: '600'
+                        },
+                        boxWidth: window.innerWidth < 480 ? 15 : 20,
+                        padding: window.innerWidth < 480 ? 4 : 6,
+                        usePointStyle: false,
+                        filter: (i) => !i.text.includes('Critical') && !i.text.includes('STALL')
+                    }
+                },
                 tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: {size: 11},
+                    bodyFont: {size: 10},
+                    padding: 8,
                     callbacks: {
                         label: function(ctx) {
                             let l = ctx.dataset.label || '';
@@ -519,15 +599,28 @@ function solveForCurrentFromTime(targetTime) {
 }
 
 function exportToPDF() {
-    // Mobile-friendly PDF export
-    if (typeof html2canvas !== 'undefined') {
-        // Advanced export with chart capture
-        window.print();
-    } else {
-        // Simple print dialog
-        window.print();
+    // Set report date for print
+    const results = document.querySelector('.results');
+    if (results) {
+        const date = new Date().toLocaleString();
+        results.setAttribute('data-date', date);
     }
+    
+    // Trigger print
+    window.print();
 }
+
+// Handle window resize to update chart responsiveness
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        if (lastSimResults && chart) {
+            // Regenerate chart with updated dimensions
+            runSimulation();
+        }
+    }, 250);
+});
 
 function saveCase() { const name = document.getElementById('caseName').value; if(!name) return; const data = { config: { kw: document.getElementById('mKW').value, flc: document.getElementById('mFLC').value, rpm: document.getElementById('mRPM').value, poles: document.getElementById('mPoles').value, freq: document.getElementById('mFreq').value, motorJ: document.getElementById('motorJ').value, loadJ: document.getElementById('loadJ').value, stall: document.getElementById('hStall').value, ssInitialI: document.getElementById('ssInitialI').value, ssFinalI: document.getElementById('ssFinalI').value, ssRampTime: document.getElementById('ssRampTime').value }, table: { mt: [...document.querySelectorAll('.val-mt')].map(e => e.value), mc: [...document.querySelectorAll('.val-mc')].map(e => e.value), lt: [...document.querySelectorAll('.val-lt')].map(e => e.value) } }; localStorage.setItem('case_' + name, JSON.stringify(data)); loadCaseList(); alert('Saved!'); }
 function loadCaseList() { const dropdown = document.getElementById('caseDropdown'); dropdown.innerHTML = '<option value="">-- Select Saved Case --</option>'; Object.keys(localStorage).forEach(key => { if(key.startsWith('case_')) dropdown.innerHTML += `<option value="${key}">${key.replace('case_', '')}</option>`; }); }

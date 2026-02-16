@@ -662,35 +662,139 @@ input:focus, .input-select:focus {
 
 /* Print Styles for PDF Export */
 @media print {
+    @page {
+        size: A4;
+        margin: 15mm;
+    }
+    
     body {
         background: white;
         color: black;
+        font-size: 11pt;
+        line-height: 1.4;
     }
     
     header {
-        background: white;
-        border-bottom: 2px solid #000;
+        background: white !important;
+        border-bottom: 2px solid #000 !important;
+        page-break-after: avoid;
+        padding: 10px 0 !important;
     }
     
-    .sidebar, .btn-main, button {
+    h1 {
+        font-size: 18pt;
+        color: #000;
+    }
+    
+    .signature {
+        font-size: 10pt;
+        color: #666;
+    }
+    
+    .header-right {
+        display: none !important;
+    }
+    
+    /* Hide interactive elements */
+    .sidebar, 
+    .mode-selector,
+    button:not(.result-label button), 
+    input[type="number"],
+    .input-select,
+    .f-group,
+    .interpolation-toggle,
+    .scroll-card,
+    .case-manager,
+    .btn-pdf,
+    #btnSimulate,
+    .info-banner {
         display: none !important;
     }
     
     .dashboard {
         display: block;
+        padding: 0;
+        height: auto;
     }
     
     .results {
         overflow: visible;
+        padding: 0;
     }
     
+    /* Results section */
     .card {
-        background: white;
-        border: 1px solid #ccc;
+        background: white !important;
+        border: 1px solid #ccc !important;
+        page-break-inside: avoid;
+        margin-bottom: 15px !important;
+        padding: 15px !important;
+        box-shadow: none !important;
+    }
+    
+    .card h3 {
+        color: #000;
+        font-size: 14pt;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+    }
+    
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
         page-break-inside: avoid;
     }
     
+    .result-item {
+        background: #f5f5f5 !important;
+        border: 1px solid #ddd !important;
+        padding: 8px !important;
+    }
+    
+    .result-label {
+        font-size: 9pt;
+        color: #666;
+    }
+    
+    .result-value {
+        font-size: 11pt;
+        color: #000;
+        font-weight: bold;
+    }
+    
+    /* Chart section */
     .chart-container {
-        background: white;
+        background: white !important;
+        height: 400px !important;
+        page-break-inside: avoid;
+        padding: 10px !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Add report metadata */
+    .results::before {
+        content: "Motor Starting Analysis Report";
+        display: block;
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #000;
+    }
+    
+    .results::after {
+        content: "Generated: " attr(data-date);
+        display: block;
+        font-size: 9pt;
+        color: #666;
+        margin-top: 10px;
+        text-align: right;
     }
 }
+
