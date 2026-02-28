@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Induction Motor Starting — Characteristics Simulator</title>
+<style>
+:root {
+  --bg: #0d1117; --sur: #161b22; --sur2: #1c2129; --brd: #30363d;
+  --txt: #c9d1d9; --mut: #6e7681; --acc: #58a6ff;
+  --dol: #f85149; --yd: #e3b341; --at: #ffa657;
+  --pr: #3fb950; --ss: #58a6ff; --vfd: #bc8cff; --load: #d29922;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;
+  background:var(--bg);color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* --- Header --- */
+#hdr{background:var(--sur);border-bottom:1px solid var(--brd);padding:10px 20px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#hdr h1{font-size:14px;font-weight:600;letter-spacing:0.02em}
+#hdr span{font-size:11px;color:var(--mut);font-family:'SF Mono','Fira Code',Consolas,monospace}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+
+/* --- Layout --- */
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:260px;flex-shrink:0;background:var(--sur);border-right:1px solid var(--brd);
+  overflow-y:auto;padding:14px}
+#charts{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:14px;gap:10px}
+#chart-row{display:flex;gap:10px;flex:1;min-height:0}
+.chart-box{flex:1;background:var(--sur2);border:1px solid var(--brd);border-radius:6px;
+  padding:10px;display:flex;flex-direction:column}
+.chart-box h3{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.chart-box svg{flex:1;width:100%;display:block}
+
+/* --- Metrics bar --- */
+#metrics{background:var(--sur);border-top:1px solid var(--brd);padding:8px 20px;
+  display:flex;gap:24px;align-items:center;flex-shrink:0}
+.metric{display:flex;flex-direction:column;gap:2px}
+.metric label{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:0.06em}
+.metric span{font-size:14px;font-family:'SF Mono','Fira Code',Consolas,monospace;font-weight:600}
+#stall-warn{background:#3d1212;border:1px solid var(--dol);border-radius:4px;
+  padding:4px 10px;font-size:11px;color:#f85149;display:none}
+
+/* --- Sidebar controls --- */
+.sec{margin-bottom:16px}
+.sec-title{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--mut);
+  padding-bottom:6px;border-bottom:1px solid var(--brd);margin-bottom:10px}
+.method-btn{width:100%;text-align:left;background:transparent;border:1px solid var(--brd);
+  border-radius:5px;padding:8px 10px;cursor:pointer;color:var(--txt);margin-bottom:5px;
+  display:flex;align-items:center;gap:8px;transition:background 0.15s}
+.method-btn:hover{background:var(--sur2)}
+.method-btn.active{background:var(--sur2);border-color:var(--acc)}
+.method-btn .mname{font-weight:600;font-size:12px;flex:1}
+.method-btn .mtag{font-size:10px;color:var(--mut)}
+
+.load-btn{background:transparent;border:1px solid var(--brd);border-radius:4px;
+  padding:5px 8px;cursor:pointer;color:var(--mut);font-size:11px;transition:all 0.15s}
+.load-btn.active{background:var(--sur2);border-color:var(--at);color:var(--txt)}
+#load-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+
+.sl-row{margin-bottom:12px}
+.sl-label{display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px}
+.sl-label span:last-child{font-family:'SF Mono','Fira Code',Consolas,monospace;color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;height:4px}
+.sl-hint{font-size:10px;color:var(--mut);margin-top:3px}
+
+#run-btn{width:100%;padding:9px;border-radius:5px;border:1px solid var(--acc);
+  background:transparent;color:var(--acc);cursor:pointer;font-size:12px;font-weight:600;
+  letter-spacing:0.04em;transition:all 0.2s;margin-top:4px}
+#run-btn:hover{background:rgba(88,166,255,0.1)}
+#run-btn.running{border-color:var(--mut);color:var(--mut);cursor:not-allowed}
+
+#speed-track{height:3px;background:var(--brd);border-radius:2px;margin-top:8px;overflow:hidden}
+#speed-fill{height:100%;width:0%;background:var(--acc);border-radius:2px;transition:width 0.03s linear}
+
+/* --- Legend --- */
+#legend{display:flex;flex-wrap:wrap;gap:8px 16px;padding:8px 12px;
+  background:var(--sur);border-top:1px solid var(--brd);flex-shrink:0}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mut)}
+.leg-line{width:20px;height:2px;flex-shrink:0}
+.leg-dash{border-top:2px dashed;width:20px;flex-shrink:0}
+
+/* scrollbar */
+#sidebar::-webkit-scrollbar{width:4px}
+#sidebar::-webkit-scrollbar-track{background:transparent}
+#sidebar::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div style="display:flex;align-items:center;gap:8px">
+    <h1>Induction Motor Starting — Characteristics Simulator</h1>
+  </div>
+  <span id="hdr-method">DOL / Fan Load &nbsp;|&nbsp; adjust controls to update curves</span>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+
+    <div class="sec">
+      <div class="sec-title">Starting Method</div>
+      <button class="method-btn active" data-m="dol">
+        <span class="dot" style="background:var(--dol)"></span>
+        <span class="mname">DOL</span><span class="mtag">Direct On-Line</span>
+      </button>
+      <button class="method-btn" data-m="yd">
+        <span class="dot" style="background:var(--yd)"></span>
+        <span class="mname">Star-Delta (Y-Δ)</span><span class="mtag">Open transition</span>
+      </button>
+      <button class="method-btn" data-m="at">
+        <span class="dot" style="background:var(--at)"></span>
+        <span class="mname">Autotransformer</span><span class="mtag">Adjustable tap</span>
+      </button>
+      <button class="method-btn" data-m="pr">
+        <span class="dot" style="background:var(--pr)"></span>
+        <span class="mname">Primary Resistance</span><span class="mtag">Series impedance</span>
+      </button>
+      <button class="method-btn" data-m="ss">
+        <span class="dot" style="background:var(--ss)"></span>
+        <span class="mname">Soft Starter</span><span class="mtag">Phase angle control</span>
+      </button>
+      <button class="method-btn" data-m="vfd">
+        <span class="dot" style="background:var(--vfd)"></span>
+        <span class="mname">VFD</span><span class="mtag">V/f or vector control</span>
+      </button>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">Load Type</div>
+      <div id="load-grid">
+        <button class="load-btn active" data-l="fan">Fan / Pump<br><small>T ∝ N²</small></button>
+        <button class="load-btn" data-l="pump_h">High-head pump<br><small>T ∝ N¹·⁸</small></button>
+        <button class="load-btn" data-l="const">Conveyor<br><small>Constant T</small></button>
+        <button class="load-btn" data-l="crush">Crusher<br><small>High breakaway</small></button>
+      </div>
+    </div>
+
+    <div class="sec" id="params-section">
+      <div class="sec-title">Parameters</div>
+      <div id="param-at" style="display:none">
+        <div class="sl-row">
+          <div class="sl-label"><span>Autotransformer Tap</span><span id="v-tap">65%</span></div>
+          <input type="range" id="sl-tap" min="50" max="85" step="5" value="65">
+          <div class="sl-hint">T = tap² × T_DOL &nbsp;|&nbsp; I_supply = tap² × I_DOL</div>
+        </div>
+      </div>
+      <div id="param-ss" style="display:none">
+        <div class="sl-row">
+          <div class="sl-label"><span>Initial Voltage</span><span id="v-initv">50%</span></div>
+          <input type="range" id="sl-initv" min="20" max="85" step="5" value="50">
+          <div class="sl-hint">T_start = (V_init)² × T_DOL</div>
+        </div>
+        <div class="sl-row">
+          <div class="sl-label"><span>Current Limit</span><span id="v-cl">300% FLA</span></div>
+          <input type="range" id="sl-cl" min="150" max="550" step="25" value="300">
+          <div class="sl-hint">Closed-loop current ceiling</div>
+        </div>
+      </div>
+      <div id="param-vfd" style="display:none">
+        <div class="sl-row">
+          <div class="sl-label"><span>Torque Limit</span><span id="v-vfd-t">100% FLT</span></div>
+          <input type="range" id="sl-vfdt" min="50" max="150" step="10" value="100">
+          <div class="sl-hint">Constant torque available from 0 rpm</div>
+        </div>
+      </div>
+      <div id="param-pr" style="display:none">
+        <div class="sl-row">
+          <div class="sl-label"><span>Resistance (V drop at stall)</span><span id="v-pr">40%</span></div>
+          <input type="range" id="sl-pr" min="20" max="60" step="5" value="40">
+          <div class="sl-hint">V_motor increases as I drops during acceleration</div>
+        </div>
+      </div>
+      <div id="param-none" style="color:var(--mut);font-size:11px">
+        No adjustable parameters for this method.
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">Simulation</div>
+      <button id="run-btn">RUN SIMULATION</button>
+      <div id="speed-track"><div id="speed-fill"></div></div>
+      <div style="font-size:10px;color:var(--mut);margin-top:5px;text-align:center" id="speed-pct">—</div>
+    </div>
+
+  </div><!-- end sidebar -->
+
+  <div id="charts">
+    <div id="chart-row">
+      <div class="chart-box">
+        <h3>Torque — Speed</h3>
+        <svg id="svg-t" viewBox="0 0 480 260" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="chart-box">
+        <h3>Current — Speed</h3>
+        <svg id="svg-i" viewBox="0 0 480 260" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+    <div id="legend">
+      <div class="leg"><span class="leg-line" id="leg-method"></span><span id="leg-m-lbl">DOL</span></div>
+      <div class="leg"><span class="leg-line" style="background:#555;border-top:2px dashed #555;height:0"></span><span>DOL reference</span></div>
+      <div class="leg"><span class="leg-line" style="background:var(--load)"></span><span>Load torque</span></div>
+      <div class="leg"><span class="leg-line" style="background:var(--acc);opacity:0.4"></span><span>Accelerating torque (shaded)</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="metrics">
+  <div class="metric"><label>Peak Supply Current</label><span id="m-ipeak">—</span></div>
+  <div class="metric"><label>vs. DOL</label><span id="m-ivsdol">—</span></div>
+  <div class="metric"><label>Starting Torque</label><span id="m-tstart">—</span></div>
+  <div class="metric"><label>Acc. Time (est.)</label><span id="m-tacc">—</span></div>
+  <div class="metric"><label>I²t (relative)</label><span id="m-i2t">—</span></div>
+  <div id="stall-warn">STALL — motor torque &lt; load torque at current settings</div>
+</div>
+
+<script>
+// ================================================================
+// PHYSICS DATA — Standard squirrel cage motor (Design B / IEC Class N)
+// All values per-unit: T in × FLT, I in × FLA, n = 0 to 1 (sync speed)
+// ================================================================
+const M = [ // [n, T, I]
+  [0.00, 1.20, 6.00],
+  [0.10, 1.00, 5.80],
+  [0.20, 1.05, 5.50],
+  [0.30, 1.18, 5.10],
+  [0.40, 1.38, 4.60],
+  [0.50, 1.70, 3.90],
+  [0.60, 2.08, 3.20],
+  [0.70, 2.40, 2.55],
+  [0.75, 2.45, 2.20],  // near breakdown
+  [0.80, 2.35, 1.90],
+  [0.85, 2.10, 1.65],
+  [0.90, 1.70, 1.40],
+  [0.94, 1.20, 1.12],
+  [0.96, 1.00, 1.00],  // rated full-load point
+  [0.98, 0.45, 0.68],
+  [1.00, 0.00, 0.33],  // synchronous speed
+];
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function motorRaw(n) {
+  // Linear interpolation between table points
+  n = Math.max(0, Math.min(1, n));
+  for (let i = 0; i < M.length - 1; i++) {
+    if (n >= M[i][0] && n <= M[i+1][0]) {
+      const t = (n - M[i][0]) / (M[i+1][0] - M[i][0]);
+      return { T: lerp(M[i][1], M[i+1][1], t), I: lerp(M[i][2], M[i+1][2], t) };
+    }
+  }
+  return { T: 0, I: M[M.length-1][2] };
+}
+
+// T scales as V², I scales linearly with V
+function motorAt(n, Vpu) {
+  const r = motorRaw(n);
+  return { T: r.T * Vpu * Vpu, I: r.I * Vpu };
+}
+
+// Load torque — returns pu FLT
+function loadT(n, type) {
+  switch(type) {
+    case 'fan':    return 0.05 + 0.95 * n * n;
+    case 'pump_h': return 0.08 + 0.92 * Math.pow(n, 1.8);
+    case 'const':  return 0.80;
+    case 'crush':  return n < 0.05 ? 1.30 : 0.80 + 0.20 * Math.pow(1-n, 3);
+    default:       return 0.05 + 0.95 * n * n;
+  }
+}
+
+// GD² per load type (affects acceleration time — normalized)
+const GD2 = { fan: 2.5, pump_h: 1.0, const: 0.8, crush: 0.6 };
+
+// ================================================================
+// STARTING METHOD — computes T_motor, I_supply for each method
+// Returns arrays of {n, Tm, Im, Tl} over 0..1
+// ================================================================
+const STATE = {
+  method: 'dol', load: 'fan',
+  tap: 0.65, initV: 0.50, cl: 3.0, vfdT: 1.0, prDrop: 0.40,
+  ydSwitch: 0.75  // star→delta switchover speed
+};
+
+function buildDataset() {
+  const pts = [];
+  const steps = 201;
+
+  for (let i = 0; i < steps; i++) {
+    const n = i / (steps - 1);
+    const Tl = loadT(n, STATE.load);
+    let Tm = 0, Im = 0, phase = '';
+
+    switch (STATE.method) {
+      case 'dol': {
+        const r = motorRaw(n);
+        Tm = r.T; Im = r.I; break;
+      }
+      case 'yd': {
+        // Star: each motor winding sees Vn/√3 → T = 1/3 T_DOL, I_line = 1/3 I_DOL
+        // At switchover: transient spike then delta (full DOL from that speed onward)
+        if (n < STATE.ydSwitch) {
+          const r = motorRaw(n);
+          Tm = r.T / 3;          // T ∝ V², V = 1/√3 → factor = 1/3
+          Im = r.I / 3;          // Line current in star = motor current/√3 × (1/√3) = I_DOL/3
+          phase = 'star';
+        } else if (n < STATE.ydSwitch + 0.02) {
+          // Transient: open-transition spike. Conservative estimate: 2.5× the DOL current at that speed
+          const r = motorRaw(STATE.ydSwitch);
+          Tm = r.T;
+          Im = Math.min(r.I * 1.8, 4.5); // spike — less than LRC, but significant
+          phase = 'trans';
+        } else {
+          const r = motorRaw(n);
+          Tm = r.T; Im = r.I; phase = 'delta';
+        }
+        break;
+      }
+      case 'at': {
+        // Motor sees tap×Vn; supply current = tap² × motor DOL current
+        const V = STATE.tap;
+        const r = motorAt(n, V);
+        Tm = r.T;
+        Im = r.I * V;  // supply current = motor current × tap ratio (transformer action)
+        // Note: motor current = r.I, supply current = tap × motor current = V × r.I
+        break;
+      }
+      case 'pr': {
+        // Series resistance drops voltage at stall, less as current decreases with acceleration
+        // V_motor ≈ Vn × (1 - drop × (1-n)) approximation of voltage divider
+        const Vn_motor = 1 - STATE.prDrop * motorRaw(n).I / motorRaw(0).I;
+        const V = Math.max(0.4, Math.min(1, Vn_motor));
+        const r = motorAt(n, V);
+        Tm = r.T; Im = r.I; break;
+      }
+      case 'ss': {
+        // Phase angle control — closed loop current limit
+        // V_ramp: increases from initV to 1.0 as motor accelerates
+        const Vramp = STATE.initV + (1 - STATE.initV) * n;
+        // Current at that voltage
+        const I_at_Vramp = motorRaw(n).I * Vramp;
+        let V;
+        if (I_at_Vramp > STATE.cl) {
+          // Voltage backed off to hold current at CL
+          V = (STATE.cl / motorRaw(n).I);
+        } else {
+          V = Vramp;
+        }
+        V = Math.max(STATE.initV * (1 - 0.1*n), Math.min(1, V));
+        const r = motorAt(n, V);
+        Tm = r.T; Im = Math.min(r.I, STATE.cl + 0.05); break;
+      }
+      case 'vfd': {
+        // V/f control: T ≈ constant (user-set limit) from 0 to rated speed
+        // I ≈ rated current (with slight increase at high torque demand)
+        const Tlim = STATE.vfdT;
+        Tm = Math.min(Tlim, motorRaw(Math.max(n, 0.96)).T); // capped at torque limit
+        Im = 0.95 + 0.1 * (Tlim - 1.0); // approximately FLA ± 10%
+        Im = Math.max(0.8, Math.min(1.2, Im));
+        break;
+      }
+    }
+    pts.push({ n, Tm: +Tm.toFixed(3), Im: +Im.toFixed(3), Tl: +Tl.toFixed(3),
+      Tacc: Math.max(0, Tm - Tl), phase });
+  }
+  return pts;
+}
+
+function buildDOLRef() {
+  const pts = [];
+  for (let i = 0; i <= 100; i++) {
+    const n = i / 100;
+    const r = motorRaw(n);
+    pts.push({ n, T: r.T, I: r.I });
+  }
+  return pts;
+}
+
+// ================================================================
+// METRICS
+// ================================================================
+function computeMetrics(data) {
+  const iPeak = Math.max(...data.map(d => d.Im));
+  const dolIPeak = motorRaw(0).I;
+  const tStart = data[0].Tm;
+  
+  // Stall check
+  let stall = false;
+  for (const d of data) {
+    if (d.n < 0.95 && d.Tm < d.Tl - 0.05) { stall = true; break; }
+  }
+  
+  // Approximate acceleration time: t_acc = GD²/(375 × T_avg_acc) × ns
+  // Normalized: t_acc_pu = J / avg_T_acc, scaled visually
+  const J = GD2[STATE.load] || 1.0;
+  let t_acc = 0;
+  const dn = 1 / (data.length - 1);
+  for (const d of data) {
+    if (d.Tacc > 0.02 && d.n < 0.97) t_acc += (dn * J) / d.Tacc;
+  }
+  t_acc *= 15; // scale to approximate seconds (1500 rpm motor, J in kg·m² pu)
+  
+  // I²t (relative)
+  let i2t = 0;
+  for (const d of data) {
+    i2t += d.Im * d.Im * (t_acc / data.length);
+  }
+  
+  return { iPeak, dolIPeak, tStart, stall, t_acc, i2t };
+}
+
+// ================================================================
+// SVG CHART RENDERER
+// ================================================================
+const PAD = { top: 16, right: 70, bottom: 36, left: 46 };
+const W = 480, H = 260;
+const PW = W - PAD.left - PAD.right;
+const PH = H - PAD.top - PAD.bottom;
+
+function ns(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+
+function el(tag, attrs, parent) {
+  const e = ns(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+function xpx(n) { return PAD.left + n * PW; }
+function ypx(v, ymax) { return PAD.top + (1 - v / ymax) * PH; }
+
+function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker }) {
+  // Clear
+  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+
+  // Grid
+  const gridG = el('g', { opacity: '0.35' }, svgEl);
+  for (let x = 0; x <= 10; x++) {
+    const px = xpx(x / 10);
+    el('line', { x1: px, y1: PAD.top, x2: px, y2: PAD.top + PH,
+      stroke: '#30363d', 'stroke-width': '1' }, gridG);
+  }
+  const yTicks = Math.ceil(ymax);
+  for (let y = 0; y <= yTicks; y++) {
+    const py = ypx(y, ymax);
+    if (py < PAD.top - 1 || py > PAD.top + PH + 1) continue;
+    el('line', { x1: PAD.left, y1: py, x2: PAD.left + PW, y2: py,
+      stroke: '#30363d', 'stroke-width': '1' }, gridG);
+  }
+
+  // Horizontal reference lines
+  for (const h of hlines) {
+    const py = ypx(h.v, ymax);
+    if (py < PAD.top || py > PAD.top + PH) continue;
+    el('line', { x1: PAD.left, y1: py, x2: PAD.left + PW, y2: py,
+      stroke: h.color, 'stroke-width': '1', 'stroke-dasharray': '5 3' }, svgEl);
+    el('text', { x: PAD.left + PW + 3, y: py + 4, fill: h.color, 'font-size': '9',
+      'font-family': 'monospace' }, svgEl).textContent = h.label;
+  }
+
+  // Axes
+  el('rect', { x: PAD.left, y: PAD.top, width: PW, height: PH,
+    fill: 'none', stroke: '#30363d', 'stroke-width': '1' }, svgEl);
+
+  // X ticks
+  for (let x = 0; x <= 10; x++) {
+    const px = xpx(x / 10);
+    el('text', { x: px, y: PAD.top + PH + 14, fill: '#6e7681', 'font-size': '9',
+      'text-anchor': 'middle', 'font-family': 'monospace' }, svgEl).textContent = x * 10 + '%';
+  }
+  // X label
+  el('text', { x: PAD.left + PW / 2, y: H - 3, fill: '#6e7681', 'font-size': '10',
+    'text-anchor': 'middle' }, svgEl).textContent = xLabel;
+
+  // Y ticks
+  for (let y = 0; y <= yTicks; y++) {
+    const py = ypx(y, ymax);
+    if (py < PAD.top - 1 || py > PAD.top + PH + 1) continue;
+    el('text', { x: PAD.left - 4, y: py + 3, fill: '#6e7681', 'font-size': '9',
+      'text-anchor': 'end', 'font-family': 'monospace' }, svgEl).textContent = y;
+  }
+  // Y label
+  const yl = el('text', { x: 10, y: PAD.top + PH / 2, fill: '#6e7681', 'font-size': '10',
+    'text-anchor': 'middle', transform: `rotate(-90,10,${PAD.top + PH / 2})` }, svgEl);
+  yl.textContent = yLabel;
+
+  // Series paths (filled areas first, then lines)
+  for (const s of series) {
+    if (!s.fill) continue;
+    const pts = s.data.filter(p => p.x >= 0 && p.x <= 1);
+    if (pts.length < 2) continue;
+    let d = `M ${xpx(pts[0].x)} ${ypx(Math.max(0, pts[0].y), ymax)}`;
+    for (const p of pts) d += ` L ${xpx(p.x)} ${ypx(Math.max(0, p.y), ymax)}`;
+    const lastX = xpx(pts[pts.length - 1].x);
+    const baseY = ypx(0, ymax);
+    d += ` L ${lastX} ${baseY} L ${xpx(pts[0].x)} ${baseY} Z`;
+    el('path', { d, fill: s.fill, opacity: s.fillOpacity || '0.12',
+      stroke: 'none' }, svgEl);
+  }
+
+  for (const s of series) {
+    const pts = s.data.filter(p => p.x >= 0 && p.x <= 1);
+    if (pts.length < 2) continue;
+    let d = '';
+    for (let i = 0; i < pts.length; i++) {
+      const px = xpx(pts[i].x), py = ypx(Math.max(0, Math.min(ymax * 1.05, pts[i].y)), ymax);
+      d += (i === 0 ? 'M ' : 'L ') + px + ' ' + py + ' ';
+    }
+    const attrs = { d, fill: 'none', stroke: s.color, 'stroke-width': s.width || '1.8',
+      'stroke-linejoin': 'round' };
+    if (s.dash) attrs['stroke-dasharray'] = s.dash;
+    el('path', attrs, svgEl);
+  }
+
+  // Animated operating point marker
+  if (marker && marker.n >= 0) {
+    const mx = xpx(marker.n);
+    el('line', { x1: mx, y1: PAD.top, x2: mx, y2: PAD.top + PH,
+      stroke: '#58a6ff', 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.6' }, svgEl);
+    const py = ypx(Math.max(0, Math.min(ymax * 1.05, marker.v)), ymax);
+    el('circle', { cx: mx, cy: py, r: '4', fill: '#58a6ff',
+      stroke: '#0d1117', 'stroke-width': '1.5' }, svgEl);
+  }
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+const METHOD_COLORS = {
+  dol:'#f85149', yd:'#e3b341', at:'#ffa657', pr:'#3fb950', ss:'#58a6ff', vfd:'#bc8cff'
+};
+const METHOD_NAMES = {
+  dol:'DOL', yd:'Star-Delta (Y-Δ)', at:'Autotransformer',
+  pr:'Primary Resistance', ss:'Soft Starter', vfd:'VFD'
+};
+const LOAD_NAMES = {
+  fan:'Fan (T∝N²)', pump_h:'High-head Pump', const:'Conveyor (Const. T)', crush:'Crusher'
+};
+
+let animN = -1;
+
+function render() {
+  const data = buildDataset();
+  const dolRef = buildDOLRef();
+  const metrics = computeMetrics(data);
+  const color = METHOD_COLORS[STATE.method];
+
+  // Torque chart
+  const tSeries = [
+    // Accelerating torque fill
+    { data: data.map(d => ({ x: d.n, y: d.Tacc })), fill: '#58a6ff', fillOpacity: '0.12' },
+    // DOL ref (only if not DOL)
+    ...(STATE.method !== 'dol' ? [{ data: dolRef.map(d => ({ x: d.n, y: d.T })),
+      color: '#484f58', dash: '4 3', width: '1.2' }] : []),
+    // Load torque
+    { data: data.map(d => ({ x: d.n, y: d.Tl })), color: '#d29922', dash: '7 3', width: '1.8' },
+    // Motor torque (active method)
+    { data: data.map(d => ({ x: d.n, y: d.Tm })), color, width: '2.2' },
+  ];
+
+  drawChart(document.getElementById('svg-t'), {
+    ymax: 3.0, yLabel: '× FLT', xLabel: 'Speed (% Synchronous)',
+    series: tSeries,
+    hlines: [{ v: 1, color: '#484f58', label: '1.0' }],
+    marker: animN >= 0 ? { n: animN, v: data[Math.round(animN * 200)].Tm } : null
+  });
+
+  // Current chart
+  const imax = STATE.method === 'dol' ? 7 : Math.max(7, metrics.iPeak + 0.5);
+  const iSeries = [
+    ...(STATE.method !== 'dol' ? [{ data: dolRef.map(d => ({ x: d.n, y: d.I })),
+      color: '#484f58', dash: '4 3', width: '1.2' }] : []),
+    { data: data.map(d => ({ x: d.n, y: d.Im })), color, width: '2.2' },
+  ];
+  const hlines_i = [{ v: 1, color: '#3fb950', label: 'FLA' }];
+  if (STATE.method === 'ss') {
+    hlines_i.push({ v: STATE.cl, color: '#58a6ff88', label: `CL=${STATE.cl.toFixed(1)}×` });
+  }
+
+  drawChart(document.getElementById('svg-i'), {
+    ymax: 7, yLabel: '× FLA', xLabel: 'Speed (% Synchronous)',
+    series: iSeries, hlines: hlines_i,
+    marker: animN >= 0 ? { n: animN, v: data[Math.round(animN * 200)].Im } : null
+  });
+
+  // Metrics
+  document.getElementById('m-ipeak').textContent = metrics.iPeak.toFixed(1) + '× FLA';
+  document.getElementById('m-ipeak').style.color =
+    metrics.iPeak > 4 ? '#f85149' : metrics.iPeak > 2.5 ? '#ffa657' : '#3fb950';
+  document.getElementById('m-ivsdol').textContent =
+    Math.round((1 - metrics.iPeak / metrics.dolIPeak) * 100) + '% reduction';
+  document.getElementById('m-tstart').textContent = metrics.tStart.toFixed(2) + '× FLT';
+  document.getElementById('m-tacc').textContent = '~' + metrics.t_acc.toFixed(0) + 's';
+  document.getElementById('m-i2t').textContent = Math.round(metrics.i2t).toLocaleString();
+
+  const sw = document.getElementById('stall-warn');
+  sw.style.display = metrics.stall ? 'block' : 'none';
+
+  // Header
+  document.getElementById('hdr-method').textContent =
+    METHOD_NAMES[STATE.method] + '  /  ' + LOAD_NAMES[STATE.load];
+
+  // Legend color
+  const ll = document.getElementById('leg-method');
+  ll.style.background = color; ll.style.borderTop = ''; ll.style.height = '2px';
+  document.getElementById('leg-m-lbl').textContent = METHOD_NAMES[STATE.method];
+}
+
+// ================================================================
+// PARAMETER VISIBILITY
+// ================================================================
+function updateParamVis() {
+  const m = STATE.method;
+  document.getElementById('param-at').style.display   = m === 'at'  ? 'block' : 'none';
+  document.getElementById('param-ss').style.display   = m === 'ss'  ? 'block' : 'none';
+  document.getElementById('param-vfd').style.display  = m === 'vfd' ? 'block' : 'none';
+  document.getElementById('param-pr').style.display   = m === 'pr'  ? 'block' : 'none';
+  document.getElementById('param-none').style.display = ['dol','yd'].includes(m) ? 'block' : 'none';
+}
+
+// ================================================================
+// ANIMATION
+// ================================================================
+let animRAF = null;
+let animRunning = false;
+
+function runSim() {
+  if (animRunning) return;
+  animRunning = true;
+  animN = 0;
+  const data = buildDataset();
+  const metrics = computeMetrics(data);
+  const btn = document.getElementById('run-btn');
+  btn.textContent = 'RUNNING...'; btn.classList.add('running');
+
+  const GD = GD2[STATE.load] || 1.0;
+  const dt = 0.016; // ~60fps
+
+  function step() {
+    if (animN >= 1.0) {
+      animN = -1; animRunning = false;
+      btn.textContent = 'RUN SIMULATION'; btn.classList.remove('running');
+      document.getElementById('speed-fill').style.width = '100%';
+      document.getElementById('speed-pct').textContent = '100% — complete';
+      render();
+      return;
+    }
+    const idx = Math.min(Math.round(animN * 200), 199);
+    const Tacc = data[idx].Tacc;
+    const dn = Tacc > 0.01 ? (dt / (GD * 2.0)) * Tacc : 0.002;
+    animN = Math.min(1.0, animN + dn);
+
+    document.getElementById('speed-fill').style.width = (animN * 100).toFixed(1) + '%';
+    document.getElementById('speed-pct').textContent =
+      Math.round(animN * 100) + '% speed  |  ' +
+      (data[idx].Im).toFixed(2) + '× FLA  |  T=' + (data[idx].Tm).toFixed(2) + ' pu';
+
+    render();
+    animRAF = requestAnimationFrame(step);
+  }
+  animRAF = requestAnimationFrame(step);
+}
+
+// ================================================================
+// EVENT WIRING
+// ================================================================
+document.querySelectorAll('.method-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    STATE.method = btn.dataset.m;
+    animN = -1;
+    updateParamVis(); render();
+  });
+});
+
+document.querySelectorAll('.load-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.load-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    STATE.load = btn.dataset.l;
+    animN = -1; render();
+  });
+});
+
+document.getElementById('sl-tap').addEventListener('input', e => {
+  STATE.tap = +e.target.value / 100;
+  document.getElementById('v-tap').textContent = e.target.value + '%';
+  render();
+});
+document.getElementById('sl-initv').addEventListener('input', e => {
+  STATE.initV = +e.target.value / 100;
+  document.getElementById('v-initv').textContent = e.target.value + '%';
+  render();
+});
+document.getElementById('sl-cl').addEventListener('input', e => {
+  STATE.cl = +e.target.value / 100;
+  document.getElementById('v-cl').textContent = e.target.value + '% FLA';
+  render();
+});
+document.getElementById('sl-vfdt').addEventListener('input', e => {
+  STATE.vfdT = +e.target.value / 100;
+  document.getElementById('v-vfd-t').textContent = e.target.value + '% FLT';
+  render();
+});
+document.getElementById('sl-pr').addEventListener('input', e => {
+  STATE.prDrop = +e.target.value / 100;
+  document.getElementById('v-pr').textContent = e.target.value + '%';
+  render();
+});
+document.getElementById('run-btn').addEventListener('click', runSim);
+
+// ================================================================
+// INIT
+// ================================================================
+updateParamVis();
+render();
+</script>
+</body>
+</html>
