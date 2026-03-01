@@ -168,8 +168,8 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;height:4px}
   <div class="metric"><label>Peak Supply Current</label><span id="m-ipeak">—</span></div>
   <div class="metric"><label>vs. DOL</label><span id="m-ivsdol">—</span></div>
   <div class="metric"><label>Starting Torque</label><span id="m-tstart">—</span></div>
-  <div class="metric"><label>Acc. Time (est.)</label><span id="m-tacc">—</span></div>
-  <div class="metric"><label>I²t (relative)</label><span id="m-i2t">—</span></div>
+  <div class="metric"><label>Torque Margin @ Start</label><span id="m-tmargin">—</span></div>
+  <div class="metric"><label>Equilibrium Speed</label><span id="m-eqspeed">—</span></div>
   <div id="stall-warn">STALL — motor torque &lt; load torque at current settings</div>
 </div>
 <script>
@@ -262,7 +262,7 @@ function loadT(n, type) {
   return loadTbase(n, type) * STATE.loadScale;
 }
 
-const GD2 = { fan: 2.5, pump_h: 1.0, const: 0.8, crush: 0.6, comp: 1.8, pdpump: 0.6 };
+// GD2 inertia factors removed — acceleration time cannot be computed without real motor/load inertia data
 
 const STATE = {
   method: 'dol', load: 'fan',
@@ -391,19 +391,30 @@ function computeMetrics(data) {
     }
   }
 
-  const J = GD2[STATE.load] || 1;
-  let t_acc = 0;
-  const dn = 1 / (data.length - 1);
-  // Integration up to equilibrium (where Tacc→0 in stable region)
-  for (const d of data) {
-    if (d.Tacc > 0.02) t_acc += (dn * J) / d.Tacc;
+  // Torque margin at start: how much headroom above load breakaway torque
+  // Positive = motor CAN start. Negative = guaranteed stall at standstill.
+  const tMargin = (data[0].Tm - data[0].Tl) / Math.max(0.001, data[0].Tl);
+
+  // Equilibrium speed: where T_motor = T_load in the STABLE region (n > breakdown)
+  // This is where the motor actually runs in steady state.
+  let eqSpeed = -1;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].n > N_BREAKDOWN && data[i].Tacc < 0.01) {
+      eqSpeed = data[i].n; break;
+    }
   }
-  t_acc *= 15;
+  // If no exact zero-crossing found, find closest approach in stable zone
+  if (eqSpeed < 0) {
+    let minGap = Infinity;
+    for (const d of data) {
+      if (d.n > N_BREAKDOWN) {
+        const gap = Math.abs(d.Tm - d.Tl);
+        if (gap < minGap) { minGap = gap; eqSpeed = d.n; }
+      }
+    }
+  }
 
-  let i2t = 0;
-  for (const d of data) i2t += d.Isup * d.Isup * (t_acc / data.length);
-
-  return { IpeakSupply, dolIPeak, tStart, stall, stallN, t_acc, i2t };
+  return { IpeakSupply, dolIPeak, tStart, stall, stallN, tMargin, eqSpeed };
 }
 
 // ── Chart engine ────────────────────────────────────────────────────
@@ -574,8 +585,27 @@ function render() {
   document.getElementById('m-ivsdol').textContent =
     Math.round((1 - metrics.IpeakSupply / metrics.dolIPeak) * 100) + '% reduction';
   document.getElementById('m-tstart').textContent = metrics.tStart.toFixed(2) + '× FLT';
-  document.getElementById('m-tacc').textContent = '~' + metrics.t_acc.toFixed(0) + ' s';
-  document.getElementById('m-i2t').textContent = Math.round(metrics.i2t).toLocaleString();
+  // Torque margin at start
+  const tmEl = document.getElementById('m-tmargin');
+  const tmPct = Math.round(metrics.tMargin * 100);
+  tmEl.textContent = (tmPct >= 0 ? '+' : '') + tmPct + '%';
+  tmEl.style.color = tmPct >= 20 ? '#3fb950' : tmPct >= 0 ? '#ffa657' : '#f85149';
+  tmEl.title = tmPct >= 0
+    ? 'Motor torque exceeds load breakaway torque by ' + tmPct + '% — will start'
+    : 'Motor torque is BELOW load breakaway torque — stall at standstill';
+
+  // Equilibrium speed
+  const eqEl = document.getElementById('m-eqspeed');
+  if (metrics.stall) {
+    eqEl.textContent = 'STALL';
+    eqEl.style.color = '#f85149';
+  } else if (metrics.eqSpeed >= 0.99) {
+    eqEl.textContent = '≈ Sync';
+    eqEl.style.color = '#3fb950';
+  } else {
+    eqEl.textContent = Math.round(metrics.eqSpeed * 100) + '% Ns';
+    eqEl.style.color = metrics.eqSpeed > 0.93 ? '#3fb950' : '#ffa657';
+  }
 
   const sw = document.getElementById('stall-warn');
   if (metrics.stall) {
@@ -638,7 +668,6 @@ function runSim() {
   const btn = document.getElementById('run-btn');
   btn.textContent = 'RUNNING...'; btn.classList.add('running');
 
-  const GD = GD2[STATE.load] || 1;
   const dt = 0.016;
 
   function step() {
@@ -662,7 +691,7 @@ function runSim() {
       finishAnim(false); return;
     }
 
-    const dn = Math.max(0.0004, (dt / (GD * 1.8)) * d.Tacc);
+    const dn = Math.max(0.0004, (dt / 2.0) * d.Tacc);
     animN = Math.min(0.999, animN + dn);
 
     document.getElementById('speed-fill').style.width = (animN * 100).toFixed(1) + '%';
