@@ -48,7 +48,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .load-btn{background:transparent;border:1px solid var(--brd);border-radius:4px;
   padding:5px 8px;cursor:pointer;color:var(--mut);font-size:11px;transition:all 0.15s}
 .load-btn.active{background:var(--sur2);border-color:var(--at);color:var(--txt)}
-#load-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#load-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px}
 .sl-row{margin-bottom:12px}
 .sl-label{display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px}
 .sl-label span:last-child{font-family:'SF Mono','Fira Code',Consolas,monospace;color:var(--acc)}
@@ -92,9 +92,11 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;height:4px}
       <div class="sec-title">Load Type</div>
       <div id="load-grid">
         <button class="load-btn active" data-l="fan">Fan / Pump<br><small>T ∝ N²</small></button>
-        <button class="load-btn" data-l="pump_h">High-head pump<br><small>T ∝ N¹·⁸</small></button>
-        <button class="load-btn" data-l="const">Conveyor<br><small>Constant T</small></button>
-        <button class="load-btn" data-l="crush">Crusher<br><small>High breakaway</small></button>
+        <button class="load-btn" data-l="pump_h">High-head Pump<br><small>T ∝ N¹·⁸</small></button>
+        <button class="load-btn" data-l="const">Conveyor<br><small>Const. torque</small></button>
+        <button class="load-btn" data-l="crush">Crusher<br><small>Breakaway + const.</small></button>
+        <button class="load-btn" data-l="comp">Compressor<br><small>T ∝ N¹·⁵</small></button>
+        <button class="load-btn" data-l="pdpump">PD Pump<br><small>Const. high torque</small></button>
       </div>
     </div>
     <div class="sec" id="params-section">
@@ -135,6 +137,14 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;height:4px}
       <div id="param-none" style="color:var(--mut);font-size:11px">No adjustable parameters for this method.</div>
     </div>
     <div class="sec">
+      <div class="sec-title">Load Scale</div>
+      <div class="sl-row">
+        <div class="sl-label"><span>Load Magnitude</span><span id="v-loadscale">80%</span></div>
+        <input type="range" id="sl-loadscale" min="30" max="130" step="5" value="80">
+        <div class="sl-hint">Scales all load torque values. >100% tests marginal conditions.</div>
+      </div>
+    </div>
+    <div class="sec">
       <div class="sec-title">Simulation</div>
       <button id="run-btn">RUN SIMULATION</button>
       <div id="speed-track"><div id="speed-fill"></div></div>
@@ -163,39 +173,47 @@ input[type=range]{width:100%;accent-color:var(--acc);cursor:pointer;height:4px}
   <div id="stall-warn">STALL — motor torque &lt; load torque at current settings</div>
 </div>
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  Design B Induction Motor Lookup Table
-//  [speed_pu, torque_pu (×FLT), current_pu (×FLA)]
+// ══════════════════════════════════════════════════════════════════════
+//  Design B Induction Motor — Normalised Lookup Table
+//  Columns: [speed_pu, torque_pu (×FLT), current_pu (×FLA)]
 //
-//  KEY PHYSICS:
-//  • LRT  (Locked-Rotor Torque)   = 0.60 × FLT  at standstill
-//  • LRC  (Locked-Rotor Current)  = 6.00 × FLA  at standstill
-//  • Current stays near LRC until motor approaches CRITICAL SLIP
-//  • Critical slip ≈ 0.22  → peak torque at n ≈ 0.78
-//  • Only AFTER the torque peak does current drop sharply
-//  • At synchronous speed: T=0, I = magnetising current ≈ 0.27 FLA
-// ═══════════════════════════════════════════════════════════════
+//  CORRECT PHYSICS:
+//  ─────────────────────────────────────────────────────────────────────
+//  • LRT  = 0.60 × FLT  (standstill torque — Design B)
+//  • LRC  = 6.00 × FLA  (locked-rotor current)
+//  • Current stays near LRC from 0 up to ~70% speed, only beginning
+//    to fall noticeably as the motor approaches BREAKDOWN (critical slip)
+//  • BREAKDOWN (peak torque) at n ≈ 0.78  (slip ≈ 0.22)
+//  • After breakdown, torque drops and current falls rapidly
+//  • Operating EQUILIBRIUM: T_motor = T_load somewhere on the
+//    descending slope (n > 0.78) — this is NORMAL RUNNING, not stall
+//  • STALL only occurs in the UNSTABLE region (n < n_breakdown):
+//    if T_motor < T_load anywhere in [0, 0.78], motor cannot accelerate
+//    through that zone and gets stuck (or never starts)
+// ══════════════════════════════════════════════════════════════════════
 const M = [
-  [0.00, 0.60, 6.00],  // Standstill: LRT, LRC
-  [0.10, 0.70, 6.00],  // Current stays flat — near LRC
+  [0.00, 0.60, 6.00],
+  [0.10, 0.70, 6.00],  // Current flat — near LRC
   [0.20, 0.86, 5.98],
   [0.30, 1.08, 5.94],
   [0.40, 1.36, 5.87],
   [0.50, 1.72, 5.76],
   [0.60, 2.14, 5.54],
-  [0.70, 2.52, 5.20],  // Approaching breakdown
-  [0.75, 2.62, 4.93],  // Just before peak
-  [0.78, 2.65, 4.62],  // ← PEAK (critical slip ≈ 0.22)
-  [0.80, 2.60, 4.22],  // Current NOW starts to drop noticeably
+  [0.70, 2.52, 5.20],
+  [0.75, 2.62, 4.93],
+  [0.78, 2.65, 4.62],  // ← BREAKDOWN / peak torque
+  [0.80, 2.60, 4.22],  // Current begins falling rapidly
   [0.85, 2.24, 3.38],
   [0.90, 1.72, 2.50],
   [0.93, 1.35, 1.92],
   [0.95, 1.10, 1.55],
   [0.97, 0.70, 1.16],
-  [0.98, 0.46, 1.01],  // ≈ FLA
+  [0.98, 0.46, 1.01],
   [0.99, 0.22, 0.58],
   [1.00, 0.00, 0.27],  // Synchronous: T=0, magnetising I only
 ];
+
+const N_BREAKDOWN = 0.78;  // Speed of peak (breakdown) torque
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -207,63 +225,69 @@ function motorRaw(n) {
       return { T: lerp(M[i][1], M[i+1][1], t), I: lerp(M[i][2], M[i+1][2], t) };
     }
   }
-  return { T: 0, I: M[M.length-1][2] };
+  return { T: 0, I: M[M.length - 1][2] };
 }
 
-// motorAt: apply voltage scaling V (0–1)
-//   Motor current scales with V (impedance model)
-//   Motor torque scales with V² (air-gap flux × current)
-//   Supply current for AT = motor_I × V (transformer action)
 function motorAt(n, V) {
   const r = motorRaw(n);
   return { T: r.T * V * V, I: r.I * V };
 }
 
-// ── Load torque curves ───────────────────────────────────────────
-function loadT(n, type) {
+// ── Load torque curves ─────────────────────────────────────────────────
+// All base values are set so that at loadScale=1.0 the motor can
+// start the load with DOL (LRT = 0.60 × FLT).
+// Use loadScale > 1 to deliberately overload and study stall behaviour.
+//
+//  Fan            T(0) = 0.05   — quadratic, zero at rest
+//  High-head pump T(0) = 0.08   — slightly steeper than fan
+//  Conveyor       T    = 0.55   — constant, just below LRT
+//  Crusher        T(0) = 0.55   — high breakaway then constant running
+//  Compressor     T(0) = 0.10   — rises steeply (centrifugal type)
+//  PD Pump        T    = 0.58   — constant high torque (marginal DOL start!)
+//
+function loadTbase(n, type) {
   switch (type) {
-    case 'fan':    return 0.06 + 0.94 * n * n;                         // T ∝ N²
-    case 'pump_h': return 0.10 + 0.90 * Math.pow(n, 1.8);             // High-head T ∝ N^1.8
-    case 'const':  return 0.80;                                         // Constant-torque (conveyor)
-    case 'crush':  return n < 0.04 ? 1.40 : 0.80 + 0.20 * Math.pow(1-n, 2); // Crusher: high breakaway
-    default:       return 0.06 + 0.94 * n * n;
+    case 'fan':    return 0.05 + 0.95 * n * n;
+    case 'pump_h': return 0.08 + 0.92 * Math.pow(n, 1.8);
+    case 'const':  return 0.55;
+    case 'crush':  return n < 0.05 ? 0.55 : 0.45 + 0.50 * n * n;
+    case 'comp':   return 0.10 + 0.90 * Math.pow(n, 1.5);
+    case 'pdpump': return 0.58;
+    default:       return 0.05 + 0.95 * n * n;
   }
 }
 
-// GD² inertia factors (higher = more inertia = slower acceleration)
-const GD2 = { fan: 2.5, pump_h: 1.0, const: 0.8, crush: 0.6 };
+// Applied load torque with user scale factor
+function loadT(n, type) {
+  return loadTbase(n, type) * STATE.loadScale;
+}
+
+const GD2 = { fan: 2.5, pump_h: 1.0, const: 0.8, crush: 0.6, comp: 1.8, pdpump: 0.6 };
 
 const STATE = {
   method: 'dol', load: 'fan',
   tap: 0.65, initV: 0.50, cl: 3.0, vfdT: 1.0, prDrop: 0.40,
+  loadScale: 0.80,
 };
 
-// ── Motor operating point per method ────────────────────────────
+// ── Motor operating point per method ──────────────────────────────────
 function motorOp(n) {
   let Tm = 0, Im = 0, Isupply = 0;
   switch (STATE.method) {
 
     case 'dol': {
       const r = motorRaw(n);
-      Tm = r.T; Im = r.I; Isupply = r.I;
-      break;
+      Tm = r.T; Im = r.I; Isupply = r.I; break;
     }
 
     case 'yd': {
-      // Star phase: each winding sees V/√3 → T=1/3 × DOL, I_line=1/3 × DOL
-      // Open-transition switch at ~75% speed (typical)
       const sw = 0.75;
       if (n < sw) {
         const r = motorRaw(n);
-        Tm = r.T / 3;
-        Im = r.I / 3;  // supply current in star = motor LRC / 3
-        Isupply = Im;
+        Tm = r.T / 3; Im = r.I / 3; Isupply = Im;
       } else if (n < sw + 0.018) {
-        // Reconnection transient: spike 4–6× FLA due to phase mismatch
         const r = motorRaw(sw);
-        Tm = r.T;
-        Im = Math.min(r.I * 1.6, 5.5);
-        Isupply = Im;
+        Tm = r.T; Im = Math.min(r.I * 1.6, 5.5); Isupply = Im;
       } else {
         const r = motorRaw(n);
         Tm = r.T; Im = r.I; Isupply = r.I;
@@ -272,61 +296,41 @@ function motorOp(n) {
     }
 
     case 'at': {
-      // Motor sees V_tap; supply sees tap² × motor_I (transformer action)
       const V = STATE.tap;
       const r = motorAt(n, V);
-      Tm = r.T;                 // V² reduction
-      Im = r.I;                 // motor winding current = V × I_DOL
-      Isupply = r.I * V;        // supply current = tap² × I_DOL
-      break;
+      Tm = r.T; Im = r.I; Isupply = r.I * V; break;
     }
 
     case 'pr': {
-      // Voltage divider: V_motor = 1 - prDrop × (I/I_LRC)
-      // As speed rises, I drops, so V_motor rises automatically
       const I_LRC = motorRaw(0).I;
-      const I_raw = motorRaw(n).I;  // DOL current at this speed
-      // Iterate once: Vn depends on current which depends on Vn
-      let V = 1 - STATE.prDrop;     // initial estimate at full LRC
+      let V = 1 - STATE.prDrop;
       for (let iter = 0; iter < 4; iter++) {
         const r = motorAt(n, V);
         V = Math.max(0.30, Math.min(1.0, 1 - STATE.prDrop * r.I / I_LRC));
       }
       const r2 = motorAt(n, V);
-      Tm = r2.T; Im = r2.I; Isupply = r2.I;
-      break;
+      Tm = r2.T; Im = r2.I; Isupply = r2.I; break;
     }
 
     case 'ss': {
-      // Phase angle control: voltage ramps from V_init to 1.0 as speed increases
-      // Closed-loop: if current would exceed CL, reduce V to enforce limit
-      const Vopen = STATE.initV + (1 - STATE.initV) * n;  // open-loop ramp
+      const Vopen = STATE.initV + (1 - STATE.initV) * n;
       const I_at_Vopen = motorRaw(n).I * Vopen;
       let V;
       if (I_at_Vopen > STATE.cl) {
-        // CL active: solve V such that motorRaw(n).I * V = CL
         V = STATE.cl / motorRaw(n).I;
       } else {
         V = Vopen;
       }
       V = Math.max(STATE.initV * 0.9, Math.min(1.0, V));
       const r = motorAt(n, V);
-      Tm = r.T;
-      Im = Math.min(r.I, STATE.cl + 0.05);  // clamp to CL + small margin
-      Isupply = Im;
-      break;
+      Tm = r.T; Im = Math.min(r.I, STATE.cl + 0.05); Isupply = Im; break;
     }
 
     case 'vfd': {
-      // V/f control: maintains rated flux → rated torque available at any speed
-      // Drive current ≈ constant at ~FLA during motoring, independent of speed
-      // Torque limited by STATE.vfdT setting
-      const r = motorRaw(Math.max(n, 0.98)); // use near-sync characteristics for slip
+      const r = motorRaw(Math.max(n, 0.98));
       Tm = Math.min(STATE.vfdT, r.T);
-      // VFD input current is roughly proportional to output torque / efficiency
-      Im = 0.95 * (Tm / STATE.vfdT) + 0.05; // ≈1× FLA when producing rated torque
-      Isupply = Im;
-      break;
+      Im = 0.95 * (Tm / Math.max(0.1, STATE.vfdT)) + 0.05;
+      Isupply = Im; break;
     }
   }
   return { Tm, Im, Isupply };
@@ -335,15 +339,14 @@ function motorOp(n) {
 function buildDataset() {
   const pts = [];
   for (let i = 0; i <= 200; i++) {
-    const n = i / 200;
+    const n  = i / 200;
     const Tl = loadT(n, STATE.load);
     const { Tm, Im, Isupply } = motorOp(n);
-    pts.push({
-      n,
-      Tm:  +Tm.toFixed(4),
-      Im:  +Im.toFixed(4),
-      Isup:+Isupply.toFixed(4),
-      Tl:  +Tl.toFixed(4),
+    pts.push({ n,
+      Tm:   +Tm.toFixed(4),
+      Im:   +Im.toFixed(4),
+      Isup: +Isupply.toFixed(4),
+      Tl:   +Tl.toFixed(4),
       Tacc: Math.max(0, Tm - Tl),
     });
   }
@@ -360,16 +363,30 @@ function buildDOLRef() {
   return pts;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  STALL DETECTION — RIGOROUS PHYSICS
+//  ─────────────────────────────────────────────────────────────────────
+//  A motor STALLS only in the UNSTABLE region (0 ≤ n < n_breakdown):
+//  if T_motor < T_load at any speed in this zone, the motor cannot
+//  accelerate through it and stalls there (or at standstill).
+//
+//  In the STABLE region (n > n_breakdown), the motor decelerates until
+//  T_motor = T_load — this is the EQUILIBRIUM (normal running point),
+//  NOT a stall. The motor runs continuously at that equilibrium speed.
+//
+//  We detect stall by scanning the unstable region for any gap where
+//  T_motor < T_load. The motor will get stuck at the first such point.
+// ══════════════════════════════════════════════════════════════════════
 function computeMetrics(data) {
-  const IpeakMotor = Math.max(...data.map(d => d.Im));
   const IpeakSupply = Math.max(...data.map(d => d.Isup));
-  const dolIPeak = motorRaw(0).I;   // 6.0× FLA
-  const tStart = data[0].Tm;
+  const dolIPeak    = motorRaw(0).I;
+  const tStart      = data[0].Tm;
 
-  // Stall: motor torque < load torque at any point below 97% speed
+  // Stall scan: ONLY in unstable region (n < N_BREAKDOWN)
   let stall = false, stallN = -1;
   for (const d of data) {
-    if (d.n < 0.97 && d.Tm < d.Tl - 0.02) {
+    if (d.n > N_BREAKDOWN) break;  // stop at breakdown — stable zone starts here
+    if (d.Tm < d.Tl - 0.005) {    // small tolerance for floating point
       stall = true; stallN = d.n; break;
     }
   }
@@ -377,8 +394,9 @@ function computeMetrics(data) {
   const J = GD2[STATE.load] || 1;
   let t_acc = 0;
   const dn = 1 / (data.length - 1);
+  // Integration up to equilibrium (where Tacc→0 in stable region)
   for (const d of data) {
-    if (d.Tacc > 0.02 && d.n < 0.97) t_acc += (dn * J) / d.Tacc;
+    if (d.Tacc > 0.02) t_acc += (dn * J) / d.Tacc;
   }
   t_acc *= 15;
 
@@ -388,7 +406,7 @@ function computeMetrics(data) {
   return { IpeakSupply, dolIPeak, tStart, stall, stallN, t_acc, i2t };
 }
 
-// ── Chart drawing ────────────────────────────────────────────────
+// ── Chart engine ────────────────────────────────────────────────────
 const PAD = { top: 18, right: 74, bottom: 38, left: 48 };
 const VW = 480, VH = 260;
 const PW = VW - PAD.left - PAD.right;
@@ -401,49 +419,66 @@ function el(tag, attrs, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
-function xpx(n)      { return PAD.left + n * PW; }
-function ypx(v, ym)  { return PAD.top + (1 - Math.max(0, v) / ym) * PH; }
+function xpx(n)     { return PAD.left + n * PW; }
+function ypx(v, ym) { return PAD.top + (1 - Math.max(0, v) / ym) * PH; }
 
-function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker }) {
+function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker, vline }) {
   while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
 
   // Grid
   const gridG = el('g', { opacity: '0.3' }, svgEl);
   for (let x = 0; x <= 10; x++) {
-    const px = xpx(x / 10);
-    el('line', { x1: px, y1: PAD.top, x2: px, y2: PAD.top + PH, stroke: '#30363d', 'stroke-width': '1' }, gridG);
+    el('line', { x1: xpx(x/10), y1: PAD.top, x2: xpx(x/10), y2: PAD.top+PH,
+                 stroke: '#30363d', 'stroke-width': '1' }, gridG);
   }
   for (let y = 0; y <= Math.ceil(ymax); y++) {
     const py = ypx(y, ymax);
-    if (py < PAD.top - 1 || py > PAD.top + PH + 1) continue;
-    el('line', { x1: PAD.left, y1: py, x2: PAD.left + PW, y2: py, stroke: '#30363d', 'stroke-width': '1' }, gridG);
+    if (py < PAD.top-1 || py > PAD.top+PH+1) continue;
+    el('line', { x1: PAD.left, y1: py, x2: PAD.left+PW, y2: py,
+                 stroke: '#30363d', 'stroke-width': '1' }, gridG);
   }
 
-  el('rect', { x: PAD.left, y: PAD.top, width: PW, height: PH, fill: 'none', stroke: '#30363d', 'stroke-width': '1' }, svgEl);
+  el('rect', { x: PAD.left, y: PAD.top, width: PW, height: PH,
+               fill: 'none', stroke: '#30363d', 'stroke-width': '1' }, svgEl);
 
-  // Axis labels
+  // X-axis ticks
   for (let x = 0; x <= 10; x++) {
-    el('text', { x: xpx(x/10), y: PAD.top + PH + 14, fill: '#6e7681', 'font-size': '9',
-                 'text-anchor': 'middle', 'font-family': 'monospace' }, svgEl).textContent = x * 10 + '%';
+    el('text', { x: xpx(x/10), y: PAD.top+PH+14, fill: '#6e7681', 'font-size': '9',
+                 'text-anchor': 'middle', 'font-family': 'monospace' }, svgEl)
+      .textContent = x * 10 + '%';
   }
-  el('text', { x: PAD.left + PW/2, y: VH - 2, fill: '#6e7681', 'font-size': '10', 'text-anchor': 'middle' }, svgEl).textContent = xLabel;
+  el('text', { x: PAD.left+PW/2, y: VH-2, fill: '#6e7681', 'font-size': '10',
+               'text-anchor': 'middle' }, svgEl).textContent = xLabel;
+
+  // Y-axis ticks
   for (let y = 0; y <= Math.ceil(ymax); y++) {
     const py = ypx(y, ymax);
-    if (py < PAD.top - 1 || py > PAD.top + PH + 1) continue;
-    el('text', { x: PAD.left - 4, y: py + 3, fill: '#6e7681', 'font-size': '9',
+    if (py < PAD.top-1 || py > PAD.top+PH+1) continue;
+    el('text', { x: PAD.left-4, y: py+3, fill: '#6e7681', 'font-size': '9',
                  'text-anchor': 'end', 'font-family': 'monospace' }, svgEl).textContent = y;
   }
-  el('text', { x: 11, y: PAD.top + PH/2, fill: '#6e7681', 'font-size': '10', 'text-anchor': 'middle',
-               transform: `rotate(-90,11,${PAD.top + PH/2})` }, svgEl).textContent = yLabel;
+  el('text', { x: 11, y: PAD.top+PH/2, fill: '#6e7681', 'font-size': '10',
+               'text-anchor': 'middle', transform: `rotate(-90,11,${PAD.top+PH/2})` }, svgEl)
+    .textContent = yLabel;
 
   // Horizontal reference lines
   for (const h of hlines) {
     const py = ypx(h.v, ymax);
-    if (py < PAD.top || py > PAD.top + PH) continue;
-    el('line', { x1: PAD.left, y1: py, x2: PAD.left + PW, y2: py,
+    if (py < PAD.top || py > PAD.top+PH) continue;
+    el('line', { x1: PAD.left, y1: py, x2: PAD.left+PW, y2: py,
                  stroke: h.color, 'stroke-width': '1', 'stroke-dasharray': '5 3' }, svgEl);
-    el('text', { x: PAD.left + PW + 3, y: py + 4, fill: h.color,
-                 'font-size': '9', 'font-family': 'monospace' }, svgEl).textContent = h.label;
+    el('text', { x: PAD.left+PW+3, y: py+4, fill: h.color, 'font-size': '9',
+                 'font-family': 'monospace' }, svgEl).textContent = h.label;
+  }
+
+  // Vertical reference line (breakdown speed)
+  if (vline) {
+    const vx = xpx(vline.n);
+    el('line', { x1: vx, y1: PAD.top, x2: vx, y2: PAD.top+PH,
+                 stroke: vline.color, 'stroke-width': '1', 'stroke-dasharray': '3 2',
+                 opacity: '0.5' }, svgEl);
+    el('text', { x: vx+2, y: PAD.top+10, fill: vline.color, 'font-size': '8',
+                 'font-family': 'monospace' }, svgEl).textContent = vline.label;
   }
 
   // Fill areas
@@ -452,9 +487,8 @@ function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker })
     const pts = s.data;
     if (pts.length < 2) continue;
     let d = `M ${xpx(pts[0].x)} ${ypx(pts[0].y, ymax)}`;
-    for (const p of pts) d += ` L ${xpx(p.x)} ${ypx(p.y, ymax)}`;
-    const lx = xpx(pts[pts.length-1].x);
-    d += ` L ${lx} ${ypx(0, ymax)} L ${xpx(pts[0].x)} ${ypx(0, ymax)} Z`;
+    for (const p of pts) d += ` L ${xpx(p.x)} ${ypx(Math.max(0, Math.min(ymax*1.05, p.y)), ymax)}`;
+    d += ` L ${xpx(pts[pts.length-1].x)} ${ypx(0, ymax)} L ${xpx(pts[0].x)} ${ypx(0, ymax)} Z`;
     el('path', { d, fill: s.fill, opacity: s.fillOpacity || '0.15', stroke: 'none' }, svgEl);
   }
 
@@ -465,10 +499,11 @@ function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker })
     let d = '';
     for (let i = 0; i < pts.length; i++) {
       const px = xpx(pts[i].x);
-      const py = ypx(Math.min(ymax * 1.05, Math.max(-0.1, pts[i].y)), ymax);
+      const py = ypx(Math.min(ymax*1.05, Math.max(-0.05, pts[i].y)), ymax);
       d += (i === 0 ? 'M ' : 'L ') + px + ' ' + py + ' ';
     }
-    const attrs = { d, fill: 'none', stroke: s.color, 'stroke-width': s.width || '2.0', 'stroke-linejoin': 'round' };
+    const attrs = { d, fill: 'none', stroke: s.color,
+                    'stroke-width': s.width || '2.0', 'stroke-linejoin': 'round' };
     if (s.dash) attrs['stroke-dasharray'] = s.dash;
     el('path', attrs, svgEl);
   }
@@ -476,16 +511,18 @@ function drawChart(svgEl, { ymax, yLabel, xLabel, series, hlines = [], marker })
   // Animation marker
   if (marker && marker.n >= 0) {
     const mx = xpx(marker.n);
-    el('line', { x1: mx, y1: PAD.top, x2: mx, y2: PAD.top + PH,
+    el('line', { x1: mx, y1: PAD.top, x2: mx, y2: PAD.top+PH,
                  stroke: '#58a6ff', 'stroke-width': '1', 'stroke-dasharray': '3 3', opacity: '0.7' }, svgEl);
-    const py = ypx(Math.min(ymax * 1.05, Math.max(0, marker.v)), ymax);
+    const py = ypx(Math.min(ymax*1.05, Math.max(0, marker.v)), ymax);
     el('circle', { cx: mx, cy: py, r: '5', fill: '#58a6ff', stroke: '#0d1117', 'stroke-width': '1.5' }, svgEl);
   }
 }
 
 const METHOD_COLORS = { dol:'#f85149', yd:'#e3b341', at:'#ffa657', pr:'#3fb950', ss:'#58a6ff', vfd:'#bc8cff' };
-const METHOD_NAMES  = { dol:'DOL', yd:'Star-Delta (Y-Δ)', at:'Autotransformer', pr:'Primary Resistance', ss:'Soft Starter', vfd:'VFD' };
-const LOAD_NAMES    = { fan:'Fan (T∝N²)', pump_h:'High-head Pump', const:'Conveyor (Const. T)', crush:'Crusher (High breakaway)' };
+const METHOD_NAMES  = { dol:'DOL', yd:'Star-Delta (Y-Δ)', at:'Autotransformer',
+                        pr:'Primary Resistance', ss:'Soft Starter', vfd:'VFD' };
+const LOAD_NAMES    = { fan:'Fan (T∝N²)', pump_h:'High-head Pump', const:'Conveyor (Const. T)',
+                        crush:'Crusher', comp:'Compressor (centrifugal)', pdpump:'PD Pump (const. T)' };
 
 let animN = -1;
 
@@ -495,26 +532,28 @@ function render() {
   const metrics = computeMetrics(data);
   const color   = METHOD_COLORS[STATE.method];
 
-  // ── Torque chart ──
+  // Torque chart
   const tSeries = [
     { data: data.map(d => ({ x: d.n, y: d.Tacc })), fill: '#58a6ff', fillOpacity: '0.12' },
-    ...(STATE.method !== 'dol' ? [{ data: dolRef.map(d => ({ x: d.n, y: d.T })),
-                                    color: '#484f58', dash: '4 3', width: '1.2' }] : []),
-    { data: data.map(d => ({ x: d.n, y: d.Tl  })), color: '#d29922', dash: '7 3', width: '2.0' },
-    { data: data.map(d => ({ x: d.n, y: d.Tm  })), color, width: '2.4' },
+    ...(STATE.method !== 'dol' ? [{
+      data: dolRef.map(d => ({ x: d.n, y: d.T })), color: '#484f58', dash: '4 3', width: '1.2'
+    }] : []),
+    { data: data.map(d => ({ x: d.n, y: d.Tl })),  color: '#d29922', dash: '7 3', width: '2.0' },
+    { data: data.map(d => ({ x: d.n, y: d.Tm })),  color, width: '2.4' },
   ];
   drawChart(document.getElementById('svg-t'), {
     ymax: 3.0, yLabel: '× FLT', xLabel: 'Speed (% Synchronous)',
     series: tSeries,
     hlines: [{ v: 1, color: '#484f58', label: '1.0' }],
+    vline:  { n: N_BREAKDOWN, color: '#4b5e74', label: 'Breakdown' },
     marker: animN >= 0 ? { n: animN, v: data[Math.min(Math.round(animN*200),200)].Tm } : null,
   });
 
-  // ── Current chart ──
-  // Show SUPPLY current (what the grid sees) — most relevant for engineering
+  // Current chart (supply side)
   const iSeries = [
-    ...(STATE.method !== 'dol' ? [{ data: dolRef.map(d => ({ x: d.n, y: d.I })),
-                                    color: '#484f58', dash: '4 3', width: '1.2' }] : []),
+    ...(STATE.method !== 'dol' ? [{
+      data: dolRef.map(d => ({ x: d.n, y: d.I })), color: '#484f58', dash: '4 3', width: '1.2'
+    }] : []),
     { data: data.map(d => ({ x: d.n, y: d.Isup })), color, width: '2.4' },
   ];
   const hlines_i = [{ v: 1, color: '#3fb950', label: 'FLA' }];
@@ -524,10 +563,11 @@ function render() {
     ymax: 7, yLabel: '× FLA', xLabel: 'Speed (% Synchronous)',
     series: iSeries,
     hlines: hlines_i,
+    vline:  { n: N_BREAKDOWN, color: '#4b5e74', label: 'Breakdown' },
     marker: animN >= 0 ? { n: animN, v: data[Math.min(Math.round(animN*200),200)].Isup } : null,
   });
 
-  // ── Metrics ──
+  // Metrics
   const el_ipeak = document.getElementById('m-ipeak');
   el_ipeak.textContent = metrics.IpeakSupply.toFixed(1) + '× FLA';
   el_ipeak.style.color = metrics.IpeakSupply > 4 ? '#f85149' : metrics.IpeakSupply > 2.5 ? '#ffa657' : '#3fb950';
@@ -538,13 +578,19 @@ function render() {
   document.getElementById('m-i2t').textContent = Math.round(metrics.i2t).toLocaleString();
 
   const sw = document.getElementById('stall-warn');
-  sw.style.display = metrics.stall ? 'block' : 'none';
   if (metrics.stall) {
-    sw.textContent = `STALL — motor torque < load torque at n=${Math.round(metrics.stallN*100)}% speed`;
+    const pct = Math.round(metrics.stallN * 100);
+    sw.textContent = pct < 5
+      ? 'STALL — motor cannot break away from standstill (LRT < load breakaway torque)'
+      : `STALL — motor torque drops below load torque at ${pct}% speed (unstable region)`;
+    sw.style.display = 'block';
+  } else {
+    sw.style.display = 'none';
   }
 
   document.getElementById('hdr-method').textContent =
-    METHOD_NAMES[STATE.method] + '  /  ' + LOAD_NAMES[STATE.load];
+    METHOD_NAMES[STATE.method] + '  /  ' + LOAD_NAMES[STATE.load] +
+    '  (scale ' + Math.round(STATE.loadScale * 100) + '%)';
 
   const ll = document.getElementById('leg-method');
   ll.style.background = color; ll.style.height = '2px';
@@ -559,43 +605,38 @@ function updateParamVis() {
   document.getElementById('param-none').style.display = ['dol','yd'].includes(m) ? 'block' : 'none';
 }
 
-// ── Animation ────────────────────────────────────────────────────
-let animRunning = false, animRAF = null, stallFrozen = false;
+// ── Animation ────────────────────────────────────────────────────────
+let animRunning = false;
 
 function finishAnim(stalled) {
   animRunning = false;
-  stallFrozen = stalled;
   const btn = document.getElementById('run-btn');
-  btn.textContent = stalled ? 'STALLED — try different settings' : 'RUN SIMULATION';
+  btn.textContent = stalled ? 'STALLED — see chart' : 'RUN SIMULATION';
   btn.classList.remove('running');
   if (!stalled) {
     document.getElementById('speed-fill').style.width = '100%';
-    document.getElementById('speed-pct').textContent = '100% — reached synchronous speed';
+    document.getElementById('speed-pct').textContent = 'Reached operating point';
   }
   render();
 }
 
 function runSim() {
   if (animRunning) return;
-  stallFrozen = false;
   animRunning = true;
   animN = 0;
   document.getElementById('stall-warn').style.display = 'none';
+  document.getElementById('speed-fill').style.width = '0%';
 
   const data = buildDataset();
 
-  // Immediate stall check at standstill
+  // Immediate stall at standstill
   if (data[0].Tacc <= 0) {
-    document.getElementById('speed-fill').style.width = '0%';
-    document.getElementById('speed-pct').textContent = 'STALL — motor cannot break away from standstill';
-    animN = 0;
-    finishAnim(true);
-    return;
+    document.getElementById('speed-pct').textContent = 'STALL — LRT < load breakaway torque';
+    animN = 0; finishAnim(true); return;
   }
 
   const btn = document.getElementById('run-btn');
-  btn.textContent = 'RUNNING...';
-  btn.classList.add('running');
+  btn.textContent = 'RUNNING...'; btn.classList.add('running');
 
   const GD = GD2[STATE.load] || 1;
   const dt = 0.016;
@@ -606,54 +647,49 @@ function runSim() {
     const idx = Math.min(Math.round(animN * 200), 200);
     const d   = data[idx];
 
-    // Stall: motor torque fell below load torque during acceleration
-    if (d.Tacc <= 0 && animN < 0.97) {
+    // STALL: only in unstable region
+    if (d.Tacc <= 0 && animN < N_BREAKDOWN) {
       document.getElementById('speed-pct').textContent =
-        'STALL at ' + Math.round(animN * 100) + '% — motor torque < load torque';
-      finishAnim(true);
-      return;
+        'STALL at ' + Math.round(animN*100) + '% — cannot accelerate past this load torque';
+      finishAnim(true); return;
     }
 
-    // Reached sync speed
-    if (animN >= 0.999) {
-      finishAnim(false);
-      return;
+    // Reached equilibrium in stable region (Tacc → 0 past breakdown = normal running)
+    if (animN >= 0.999 || (animN > N_BREAKDOWN && d.Tacc < 0.005)) {
+      const runSpeed = Math.round(animN * 100);
+      document.getElementById('speed-pct').textContent =
+        'Running at ' + runSpeed + '%  |  ' + d.Isup.toFixed(2) + '× FLA  (equilibrium)';
+      finishAnim(false); return;
     }
 
-    // GD²-based integration: dn = (Tacc / J) × dt
-    const dn = Math.max(0.0003, (dt / (GD * 1.8)) * d.Tacc);
+    const dn = Math.max(0.0004, (dt / (GD * 1.8)) * d.Tacc);
     animN = Math.min(0.999, animN + dn);
 
     document.getElementById('speed-fill').style.width = (animN * 100).toFixed(1) + '%';
     document.getElementById('speed-pct').textContent =
-      Math.round(animN * 100) + '% speed  |  ' +
-      d.Isup.toFixed(2) + '× FLA  |  T=' + d.Tm.toFixed(2) + ' pu';
+      Math.round(animN*100) + '% speed  |  ' +
+      d.Isup.toFixed(2) + '× FLA  |  T_acc=' + d.Tacc.toFixed(2);
 
     render();
-    animRAF = requestAnimationFrame(step);
+    requestAnimationFrame(step);
   }
-
-  animRAF = requestAnimationFrame(step);
+  requestAnimationFrame(step);
 }
 
-// ── Event wiring ─────────────────────────────────────────────────
+// ── Event wiring ─────────────────────────────────────────────────────
 document.querySelectorAll('.method-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    STATE.method = btn.dataset.m;
-    animN = -1; stallFrozen = false;
+    STATE.method = btn.dataset.m; animN = -1;
     updateParamVis(); render();
   });
 });
-
 document.querySelectorAll('.load-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.load-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    STATE.load = btn.dataset.l;
-    animN = -1; stallFrozen = false;
-    render();
+    STATE.load = btn.dataset.l; animN = -1; render();
   });
 });
 
@@ -680,6 +716,11 @@ document.getElementById('sl-vfdt').addEventListener('input', e => {
 document.getElementById('sl-pr').addEventListener('input', e => {
   STATE.prDrop = +e.target.value / 100;
   document.getElementById('v-pr').textContent = e.target.value + '%';
+  animN = -1; render();
+});
+document.getElementById('sl-loadscale').addEventListener('input', e => {
+  STATE.loadScale = +e.target.value / 100;
+  document.getElementById('v-loadscale').textContent = e.target.value + '%';
   animN = -1; render();
 });
 document.getElementById('run-btn').addEventListener('click', runSim);
